@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 直接分发使用 Hardened Runtime，不启用 App Sandbox。
+	     内嵌 PostgreSQL 需要自身的进程与少量 System V IPC 能力。 -->
+	<!-- 原生业务页面只有用户授权媒体采集后才使用这些设备能力。 -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

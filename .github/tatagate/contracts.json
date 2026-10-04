@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "repository": "tuyufactory",
+  "workflows": [
+    "tuyufactory.client-android.ci",
+    "tuyufactory.client-android.release",
+    "tuyufactory.client-ios.ci",
+    "tuyufactory.client-ios.release",
+    "tuyufactory.client-macos.ci",
+    "tuyufactory.client-macos.release",
+    "tuyufactory.client-windows.ci",
+    "tuyufactory.client-windows.release",
+    "tuyufactory.host-linux-amd.ci",
+    "tuyufactory.host-linux-amd.release",
+    "tuyufactory.host-linux-arm.ci",
+    "tuyufactory.host-linux-arm.release",
+    "tuyufactory.host-macos.ci",
+    "tuyufactory.host-macos.release",
+    "tuyufactory.host-windows.ci",
+    "tuyufactory.host-windows.release"
+  ],
+  "node_tests": [
+    "app/scripts/project.test.mjs",
+    "scripts/client/ci/android/factory-client-android/test.mjs",
+    "scripts/client/ci/ios/factory-client-ios/test.mjs",
+    "scripts/client/ci/macos/factory-client-macos/test.mjs",
+    "scripts/client/ci/windows/factory-client-windows/test.mjs",
+    "scripts/client/release/android/factory-client-android/test.mjs",
+    "scripts/client/release/ios/factory-client-ios/test.mjs",
+    "scripts/client/release/macos/factory-client-macos/test.mjs",
+    "scripts/client/release/windows/factory-client-windows/test.mjs",
+    "scripts/dependencies.test.mjs",
+    "scripts/host/ci/linux-amd/factory-host-linux-amd/test.mjs",
+    "scripts/host/ci/linux-arm/factory-host-linux-arm/test.mjs",
+    "scripts/host/ci/macos/factory-host-macos/test.mjs",
+    "scripts/host/ci/windows/factory-host-windows/test.mjs",
+    "scripts/host/release/linux-amd/factory-host-linux-amd/test.mjs",
+    "scripts/host/release/linux-arm/factory-host-linux-arm/test.mjs",
+    "scripts/host/release/macos/factory-host-macos/test.mjs",
+    "scripts/host/release/windows/factory-host-windows/test.mjs"
+  ],
+  "checks": [
+    "repository-contracts"
+  ],
+  "tools": {
+    "node": "25.2.1",
+    "actionlint": "1.7.12",
+    "rust": null
+  },
+  "platform_forbidden_values": [
+    "macOS ARM64",
+    "macos-arm64",
+    "macos_arm64"
+  ]
+}

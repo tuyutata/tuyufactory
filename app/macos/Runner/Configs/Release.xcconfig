@@ -1,0 +1,6 @@
+#include "../../Flutter/Flutter-Release.xcconfig"
+#include "Warnings.xcconfig"
+
+// 厂家端 macOS 正式外壳只构建 Apple Silicon，避免 Flutter 3.44 向新版 lipo 传入多架构校验参数。
+ARCHS = arm64
+ONLY_ACTIVE_ARCH = YES

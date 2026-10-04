@@ -1,0 +1,17 @@
+// Application-level settings for the Runner target.
+//
+// This may be replaced with something auto-generated from metadata (e.g., pubspec.yaml) in the
+// future. If not, the values below would default to using the project name when this becomes a
+// 'flutter create' template.
+
+// 打包入口必须显式选择 Host.xcconfig 或 Client.xcconfig 中的身份。
+// 不默认主机；构建阶段会把身份与唯一 Dart 入口共同校验，缺失即失败。
+
+// The application's name. By default this is also the title of the Flutter window.
+PRODUCT_NAME = $(TUYU_FACTORY_PRODUCT_NAME)
+
+// The application's bundle identifier
+PRODUCT_BUNDLE_IDENTIFIER = $(TUYU_FACTORY_BUNDLE_IDENTIFIER)
+
+// The copyright displayed in application information
+PRODUCT_COPYRIGHT = Copyright © 2026 com. All rights reserved.

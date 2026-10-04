@@ -1,0 +1,4 @@
+<paths>
+    <!-- 只允许向用户选择的相机授予本次拍摄 URI，不开放应用其它数据。 -->
+    <cache-path name="camera" path="camera/" />
+</paths>

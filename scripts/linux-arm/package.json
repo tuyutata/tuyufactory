@@ -1,0 +1,6 @@
+{
+  "platform": "linux-arm",
+  "displayName": "LinuxARM",
+  "cpuArchitecture": "aarch64",
+  "packageArchitecture": "arm64"
+}

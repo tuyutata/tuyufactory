@@ -1,0 +1,6 @@
+{
+  "platform": "linux-amd",
+  "displayName": "LinuxAMD",
+  "cpuArchitecture": "x86_64",
+  "packageArchitecture": "amd64"
+}

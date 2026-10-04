@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "package": "citizen_sdk",
+  "source": {
+    "url": "https://github.com/crcfrcn/citizensdk.git",
+    "ref": "52b83f8f33a9424f3a92161da4f183678263ab7c",
+    "path": "."
+  }
+}

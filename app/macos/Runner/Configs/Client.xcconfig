@@ -1,0 +1,5 @@
+// 途遇厂家分机是独立安装产品，不复用主机数据命名空间。
+TUYU_FACTORY_PRODUCT_NAME = TuyuFactoryClient
+TUYU_FACTORY_BUNDLE_IDENTIFIER = com.tuyufactory.client
+// 本地化名称由 InfoPlist.xcstrings 提供；未本地化名称与物理包名匹配。
+TUYU_FACTORY_DISPLAY_NAME = $(TUYU_FACTORY_PRODUCT_NAME)

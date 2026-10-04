@@ -1,0 +1,7 @@
+<network-security-config>
+    <!-- 只对本机 TLS 字节中继撤下公共 CA；SDK 其它 HTTPS 仍使用系统信任。 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <trust-anchors />
+    </domain-config>
+</network-security-config>

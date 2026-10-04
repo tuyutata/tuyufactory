@@ -1,0 +1,6 @@
+#include "../../Flutter/Flutter-Debug.xcconfig"
+#include "Warnings.xcconfig"
+
+// 调试与正式包保持同一设备架构，不生成与产品合同不同的桌面切片。
+ARCHS = arm64
+ONLY_ACTIVE_ARCH = YES

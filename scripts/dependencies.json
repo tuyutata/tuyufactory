@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "product": "tuyufactory-client",
+  "platform": "windows",
+  "sdk": {
+    "version": "1.0.3537.50",
+    "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3537.50/microsoft.web.webview2.1.0.3537.50.nupkg",
+    "sha256": "5ea526bbd728adda0da4d31219267e96460494a427e4894c4e09d9f320f4b9aa"
+  },
+  "runtime": {
+    "version": "152.0.4191.62",
+    "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/0a4a34d9-ccaa-4cef-98b4-58cb313fbfeb/Microsoft.WebView2.FixedVersionRuntime.152.0.4191.62.x64.cab",
+    "sha256": "2dc7d817ddce4d036f33684425c218f1ca2d073911136e5d3f8ce9b2340569b5",
+    "root": "Microsoft.WebView2.FixedVersionRuntime.152.0.4191.62.x64"
+  }
+}

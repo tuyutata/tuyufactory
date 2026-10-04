@@ -1,0 +1,24 @@
+{
+  "product": "tuyufactory",
+  "dependency_mode": "git_subtree",
+  "components": [
+    {
+      "name": "Frappe Framework",
+      "repository": "https://github.com/tuyutata/frappe",
+      "branch": "codex/tuyubooking-postgresql-schema",
+      "revision": "8bc4bfb7d96a0b9a4d5a20e1ded93b40efee53ec",
+      "path": "imported/frappe",
+      "license": "MIT",
+      "required_files": ["LICENSE", "pyproject.toml", "package.json"]
+    },
+    {
+      "name": "ERPNext",
+      "repository": "https://github.com/tuyutata/erpnext",
+      "branch": "version-16",
+      "revision": "b24c9eba551905e256e336ff170a91a92d197a2f",
+      "path": "imported/erpnext",
+      "license": "GPL-3.0",
+      "required_files": ["license.txt", "pyproject.toml"]
+    }
+  ]
+}

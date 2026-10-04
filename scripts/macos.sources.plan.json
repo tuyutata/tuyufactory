@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "local_materialization",
+  "platform": "macos",
+  "architecture": "arm64",
+  "network_install_allowed_at_runtime": false,
+  "components": {
+    "python": {
+      "prefetch": true,
+      "version": "3.14.3",
+      "artifact": "Python-3.14.3.tgz",
+      "url": "https://www.python.org/ftp/python/3.14.3/Python-3.14.3.tgz",
+      "sha256": "d7fe130d0501ae047ca318fa92aa642603ab6f217901015a1df6ce650d5470cd"
+    },
+    "node": {
+      "prefetch": true,
+      "tool": "node",
+      "platform": "macos"
+    },
+    "postgresql": {
+      "prefetch": true,
+      "version": "17.11",
+      "artifact": "postgresql-17.11.tar.bz2",
+      "url": "https://ftp.postgresql.org/pub/source/v17.11/postgresql-17.11.tar.bz2",
+      "sha256": "dd27f2b3c59e73ed14aa3324901242bf69a032a6347805f274e6260322d42979"
+    },
+    "yarn": {
+      "prefetch": true,
+      "tool": "yarn",
+      "platform": "macos"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+module TuyuFactoryMacosProduct
+  def self.validate(phase, environment = ENV)
+    raise '厂家macOS构建阶段不明确' unless %w[assemble embed].include?(phase)
+    expected = {
+      'lib/main_host.dart' => ['TuyuFactory', 'com.tuyufactory'],
+      'lib/main_client.dart' => ['TuyuFactoryClient', 'com.tuyufactory.client'],
+    }.fetch(environment['FLUTTER_TARGET']) { raise '厂家macOS必须明确指定host或client Dart入口' }
+    unless environment['TUYU_FACTORY_PRODUCT_NAME'] == expected[0] &&
+           environment['TUYU_FACTORY_BUNDLE_IDENTIFIER'] == expected[1] &&
+           environment['ARCHS'] == 'arm64'
+      raise '厂家macOS入口、安装身份或ARM64架构不一致'
+    end
+    if phase == 'embed' &&
+       (environment['PRODUCT_NAME'] != expected[0] ||
+        environment['PRODUCT_BUNDLE_IDENTIFIER'] != expected[1])
+      raise '厂家macOS最终安装身份与编译入口不一致'
+    end
+    true
+  end
+end
+
+if __FILE__ == $PROGRAM_NAME
+  abort '只支持validate-product' unless ARGV.shift == 'validate-product'
+  TuyuFactoryMacosProduct.validate(ARGV.fetch(0))
+  exit
+end
+
+platform :osx, '26.0'
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  settings = File.expand_path(
+    File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'),
+    __FILE__,
+  )
+  raise "${settings} must exist. Run flutter pub get before pod install" unless File.file?(settings)
+  File.foreach(settings) do |line|
+    value = line.match(/^FLUTTER_ROOT=(.+)$/)
+    return value[1].strip if value
+  end
+  raise 'Flutter configuration does not define FLUTTER_ROOT'
+end
+
+require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
+flutter_macos_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_macos_build_settings(target)
+    target.build_configurations.each do |configuration|
+      configuration.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '26.0'
+    end
+  end
+end

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <!-- 当前发现层直接使用 UDP 多播；签名描述文件必须真实包含该能力。 -->
+  <key>com.apple.developer.networking.multicast</key><true/>
+</dict></plist>
