@@ -5,7 +5,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { createProject, platformEntries, verifyProject, resolveFirstPartyDependencies } from './project.mjs';
+import { createProject, platformEntries, verifyProject, resolveFirstPartyDependencies, sourceGitEnvironment } from './project.mjs';
 
 // 使用源码外最小夹具验证路径与归属；不运行Flutter、不下载工具、不接触真实账户。
 function fixture(t) {
@@ -30,7 +30,7 @@ function fixture(t) {
     "export function createFlutterSourceView(source,output) {mkdirSync(join(output,'lib'),{recursive:true});" +
     "symlinkSync(join(source,'lib/citizen_sdk.dart'),join(output,'lib/citizen_sdk.dart'));" +
     "for(const name of ['pubspec.yaml','pubspec.lock'])copyFileSync(join(source,name),join(output,name));return output;}\n");
-  const git = args => execFileSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+  const git = args => execFileSync(sourceGitEnvironment().path, ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
     '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', '-C', provider, ...args],
     { encoding: 'utf8', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' } }).trim();
   git(['init', '--quiet']); git(['remote', 'add', 'origin', 'https://github.com/crcfrcn/citizensdk.git']);
@@ -125,5 +125,16 @@ test('错误URL、锁SHA、脏Git、源码链接、path和override均在依赖�
     assert.throws(() => resolveFirstPartyDependencies(f.source, f.work), undefined, kind);
     await assert.rejects(createProject({ ...f, platform: 'ios' }));
     assert.equal(existsSync(join(f.work, 'flutter-project', f.source.slice(1))), false);
+  }
+});
+
+// 生产来源读取和临时Git夹具使用同一准确交付；目录、链接和其它版本不能冒充正式Git。
+test('固定源码Git入口拒绝缺失相对链接及错版本', t => {
+  const f=fixture(t), actual=sourceGitEnvironment();
+  assert.equal(actual.path,process.env.PRODUCT_GIT_BIN);
+  assert.equal(actual.env.PATH,dirname(actual.path));
+  const link=join(f.root,'git-link');symlinkSync(actual.path,link);
+  for(const path of [undefined,'git','/tmp/../git',f.root,link,process.execPath]) {
+    assert.throws(()=>sourceGitEnvironment({...process.env,PRODUCT_GIT_BIN:path}), /Git/u);
   }
 });

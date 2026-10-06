@@ -1,0 +1,1071 @@
+{
+  "schema": 1,
+  "product_id": "tuyufactory",
+  "entry": "scripts/build.mjs",
+  "platforms": {
+    "host-macos": {
+      "tools": [
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "yarn",
+          "version": "1.22.22"
+        },
+        {
+          "id": "pnpm",
+          "version": "10.18.0"
+        },
+        {
+          "id": "composer",
+          "version": "2.10.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-host-macos-ci.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-host-macos-release.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      }
+    },
+    "host-windows": {
+      "tools": [
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "yarn",
+          "version": "1.22.22"
+        },
+        {
+          "id": "pnpm",
+          "version": "10.18.0"
+        },
+        {
+          "id": "composer",
+          "version": "2.10.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-host-windows-ci.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-host-windows-release.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      }
+    },
+    "host-linux-arm": {
+      "tools": [
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "yarn",
+          "version": "1.22.22"
+        },
+        {
+          "id": "pnpm",
+          "version": "10.18.0"
+        },
+        {
+          "id": "composer",
+          "version": "2.10.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-host-linux-arm-ci.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-host-linux-arm-release.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      }
+    },
+    "host-linux-amd": {
+      "tools": [
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "yarn",
+          "version": "1.22.22"
+        },
+        {
+          "id": "pnpm",
+          "version": "10.18.0"
+        },
+        {
+          "id": "composer",
+          "version": "2.10.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-host-linux-amd-ci.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-host-linux-amd-release.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "python",
+            "version": "3.14.3"
+          },
+          {
+            "id": "yarn",
+            "version": "1.22.22"
+          },
+          {
+            "id": "pnpm",
+            "version": "10.18.0"
+          },
+          {
+            "id": "composer",
+            "version": "2.10.3"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          }
+        ]
+      }
+    },
+    "client-ios": {
+      "tools": [
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "cocoapods",
+          "version": "1.17.0"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-client-ios-ci.yml",
+        "tools": [
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "cocoapods",
+            "version": "1.17.0"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-client-ios-release.yml",
+        "tools": [
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "cocoapods",
+            "version": "1.17.0"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      }
+    },
+    "client-android": {
+      "tools": [
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "java",
+          "version": "17.0.20.1"
+        },
+        {
+          "id": "gradle",
+          "version": "9.1.0"
+        },
+        {
+          "id": "android",
+          "version": "37.0.1"
+        },
+        {
+          "id": "android-sdk",
+          "version": "22.0"
+        },
+        {
+          "id": "android-ndk",
+          "version": "28.2.13676358"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-client-android-ci.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "java",
+            "version": "17.0.20.1"
+          },
+          {
+            "id": "gradle",
+            "version": "9.1.0"
+          },
+          {
+            "id": "android",
+            "version": "37.0.1"
+          },
+          {
+            "id": "android-sdk",
+            "version": "22.0"
+          },
+          {
+            "id": "android-ndk",
+            "version": "28.2.13676358"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-client-android-release.yml",
+        "tools": [
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "java",
+            "version": "17.0.20.1"
+          },
+          {
+            "id": "gradle",
+            "version": "9.1.0"
+          },
+          {
+            "id": "android",
+            "version": "37.0.1"
+          },
+          {
+            "id": "android-sdk",
+            "version": "22.0"
+          },
+          {
+            "id": "android-ndk",
+            "version": "28.2.13676358"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      }
+    },
+    "client-macos": {
+      "tools": [
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "cocoapods",
+          "version": "1.17.0"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-client-macos-ci.yml",
+        "tools": [
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "cocoapods",
+            "version": "1.17.0"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-client-macos-release.yml",
+        "tools": [
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "cocoapods",
+            "version": "1.17.0"
+          },
+          {
+            "id": "xcode",
+            "version": "27.0"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      }
+    },
+    "client-windows": {
+      "tools": [
+        {
+          "id": "webview2",
+          "version": "152.0.4191.62"
+        },
+        {
+          "id": "cmake",
+          "version": "3.31.6"
+        },
+        {
+          "id": "git",
+          "version": "2.54.0"
+        },
+        {
+          "id": "node",
+          "version": "25.2.1"
+        },
+        {
+          "id": "flutter",
+          "version": "3.47.2"
+        },
+        {
+          "id": "posix",
+          "version": "27.0"
+        },
+        {
+          "id": "rust",
+          "version": "1.97.1"
+        },
+        {
+          "id": "python",
+          "version": "3.14.3"
+        },
+        {
+          "id": "xcode",
+          "version": "27.0"
+        }
+      ],
+      "locks": [
+        {
+          "ecosystem": "cargo",
+          "path": "Cargo.lock"
+        },
+        {
+          "ecosystem": "pub",
+          "path": "app/pubspec.lock"
+        }
+      ],
+      "ci": {
+        "entry": ".github/workflows/tuyufactory-client-windows-ci.yml",
+        "tools": [
+          {
+            "id": "webview2",
+            "version": "152.0.4191.62"
+          },
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      },
+      "release": {
+        "entry": ".github/workflows/tuyufactory-client-windows-release.yml",
+        "tools": [
+          {
+            "id": "webview2",
+            "version": "152.0.4191.62"
+          },
+          {
+            "id": "cmake",
+            "version": "3.31.6"
+          },
+          {
+            "id": "git",
+            "version": "2.54.0"
+          },
+          {
+            "id": "node",
+            "version": "25.2.1"
+          },
+          {
+            "id": "flutter",
+            "version": "3.47.2"
+          },
+          {
+            "id": "rust",
+            "version": "1.97.1"
+          }
+        ]
+      }
+    }
+  }
+}

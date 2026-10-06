@@ -27,13 +27,24 @@ function dependencyField(block, key) {
   return value.startsWith('"') && value.endsWith('"') ? JSON.parse(value)
     : value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1) : value;
 }
+// 固定Git版本与普通绝对入口一起验证；不从PATH或系统目录选择替代执行器。
+export function sourceGitEnvironment(environment = process.env) {
+  const path = environment.PRODUCT_GIT_BIN;
+  if (typeof path !== 'string' || !isAbsolute(path) || resolve(path) !== path || /[\x00-\x1f]/u.test(path)) fail('Git必须显式交付规范绝对路径');
+  const info = lstatSync(path);
+  if (!info.isFile() || info.isSymbolicLink() || !(info.mode & 0o111) || realpathSync(path) !== path) fail('Git必须是准确普通执行器');
+  const env = { HOME: environment.HOME, PATH: dirname(path), LANG: 'C', LC_ALL: 'C',
+    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0' };
+  if (execFileSync(path, ['--version'], { env, encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'pipe'] }).trim() !== 'git version 2.54.0') fail('Git版本不符');
+  return { path, env };
+}
 function sourceGit(root, args) {
-  return execFileSync(process.platform === 'win32' ? 'git' : '/usr/bin/git', ['-c', 'credential.helper=', '-c', 'core.hooksPath=/dev/null',
+  const { path, env } = sourceGitEnvironment();
+  return execFileSync(path, ['-c', 'credential.helper=', '-c', 'core.hooksPath=/dev/null',
     '-c', 'protocol.file.allow=never', '-c', 'gc.auto=0', '-C', root, ...args], {
     encoding: 'utf8', timeout: 180000, maxBuffer: 1024 * 1024,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { HOME: process.env.HOME, PATH: process.env.PATH, LANG: 'C',
-      GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0' },
+    env,
   }).trim();
 }
 function verifyGitDirectory(root) {

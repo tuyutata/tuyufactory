@@ -12,7 +12,7 @@ dependencies:
     git:
       url: https://github.com/crcfrcn/citizensdk.git
       path: .
-      ref: 7f94641635c72eedbc1fee14df8aba4d1a639bf9
+      ref: 3e53f18354e1b21c75d7e4543f2102ba8163c575
   flutter:
     sdk: flutter
   flutter_localizations:
