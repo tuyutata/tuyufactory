@@ -5,7 +5,7 @@ set -euo pipefail
 platform="$1"; export PROJECT_ROOT="$2"; export WORK_DIR="$3"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 : "${NODE:?缺少Node入口}" "${FLUTTER:?缺少Flutter入口}"
-[[ "$WORK_DIR" != "$root" && "$WORK_DIR" != "$root/"* ]] || { echo 'Build输出不得进入源码' >&2; exit 1; }
+[[ "$WORK_DIR" == "$root/target/$platform/"* ]] || { echo 'Build输出不得进入源码' >&2; exit 1; }
 case "$platform" in client-ios|client-android|client-macos|host-macos|host-windows|client-windows|host-linux-arm|host-linux-amd) ;; *) echo '产品Build平台无效' >&2; exit 2;; esac
 # 在启动编译器前验证准确平台、规范工具与源码外输出；不接受别名路径、链接和旧候选。
 unset NODE_OPTIONS NODE_PATH LD_PRELOAD DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH
@@ -25,7 +25,7 @@ const inside = (root, path) => {
   const r = relative(root, path); return r === '' || !isAbsolute(r) && r !== '..' && !r.startsWith('..' + sep);
 };
 for (const path of [source, project, work]) canonical(path, 'directory');
-if (inside(source, work) || inside(work, source) || project === work || !inside(work, project)) fail();
+if (!inside(resolve(source, 'target'), work) || inside(work, source) || project === work || !inside(work, project)) fail();
 for (const name of ['NODE', 'FLUTTER']) canonical(process.env[name], 'file');
 const build = process.env.BUILD_DIR;
 if (!build || !isAbsolute(build) || build !== resolve(build) || !inside(work, build)
@@ -107,7 +107,7 @@ process.stdout.write(fields.map(([name, key]) => Buffer.from(name + "=" + value[
 
 case "$platform" in
   client-ios)
-    "$FLUTTER" build ios --release --no-codesign --target lib/main_client.dart
+    "$FLUTTER" build ios --release --target lib/main_client.dart
     candidate="$BUILD_DIR/ios/iphoneos/Runner.app"; "$NODE" "$root/scripts/verify.mjs" --package "$candidate" client ios payload
     verify_candidate "$candidate" directory
     ditto -c -k --sequesterRsrc --keepParent "$candidate" "$WORK_DIR/ios.app.zip"

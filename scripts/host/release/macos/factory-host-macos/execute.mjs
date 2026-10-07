@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { remoteEnvironment as productRemoteEnvironment } from '../../../../build.mjs';
+if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 import { spawnSync as runExactProcess } from 'node:child_process';
 function validateCandidate(){const value=process.env;
 if(!/^[0-9a-f]{40}$/.test(value.SOURCE_SHA||'')||!/^[1-9][0-9]*$/.test(value.CI_RUN_ID||'')||!/^\d+\.\d{1,2}\.\d{1,2}$/.test(value.SOFTWARE_VERSION||'')||value.VERSION_TAG!=='tuyufactory-host-macos-v'+value.SOFTWARE_VERSION)throw Error('准确Release候选无效');}

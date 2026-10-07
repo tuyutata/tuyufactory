@@ -51,7 +51,11 @@ class GatewayTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # 所有临时证书和测试资产归当前厂家测试目录，退出自动清理。
-        directory = Path(os.environ['TUYUFACTORY_TEST_DIR']).resolve()
+        product_target = Path(__file__).resolve().parents[1] / 'target'
+        supplied = Path(os.environ['TUYUFACTORY_TEST_DIR'])
+        directory = supplied.resolve()
+        if directory != supplied or product_target not in directory.parents:
+            raise ValueError('factory test directory must belong to product target')
         if not directory.is_absolute():
             raise ValueError('factory test directory must be absolute')
         cls.temporary = tempfile.TemporaryDirectory(dir=directory)

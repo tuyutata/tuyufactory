@@ -7,17 +7,29 @@ DESTINATION="${1:?usage: build_macos.sh DESTINATION}"
 # 原件输入在创建或清理任何本轮目录前验证；没有交付组件就保持源码与既有候选不变。
 "${NODE:?缺少Node准确入口}" --input-type=module - "$ROOT" <<'COMPONENT_INPUTS'
 import { lstatSync, realpathSync } from 'node:fs';
-import { isAbsolute, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve, sep } from 'node:path';
 const source = realpathSync(process.argv[2]);
 for (const name of ['TUYU_OPENSSL_PREFIX', 'TUYU_LIBFFI_PREFIX', 'TUYU_PANGO_PREFIX']) {
   const path = process.env[name];
   if (!path || !isAbsolute(path) || resolve(path) !== path || realpathSync(path) !== path
-    || !lstatSync(path).isDirectory() || path === source || path.startsWith(source + sep)
+    || !lstatSync(path).isDirectory() || path === source || (path.startsWith(source + sep) && !path.startsWith(join(source, 'target') + sep))
     || source.startsWith(path + sep)) throw Error('编译组件未交付或目录身份无效：' + name);
 }
 COMPONENT_INPUTS
 
-WORK_ROOT="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-/tmp}/tuyufactory/host/macos}"
+# 所有独立入口的工具临时状态归本产品target；宿主已交付的产品工作根继续归当前任务。
+PRODUCT_TEMP_SCRIPT="${BASH_SOURCE[0]}"
+while [[ -L "$PRODUCT_TEMP_SCRIPT" ]]; do
+  PRODUCT_TEMP_LINK="$(readlink "$PRODUCT_TEMP_SCRIPT")"
+  [[ "$PRODUCT_TEMP_LINK" == /* ]] || PRODUCT_TEMP_LINK="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")" && pwd -P)/$PRODUCT_TEMP_LINK"
+  PRODUCT_TEMP_SCRIPT="$PRODUCT_TEMP_LINK"
+done
+PRODUCT_TEMP_SOURCE="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")/.." && pwd -P)"
+PRODUCT_TARGET_TEMP_ROOT="$("${PRODUCT_NODE_BIN:-${NODE:-node}}" "$PRODUCT_TEMP_SOURCE/scripts/build.mjs" temporary-root "${PLATFORM:-${platform:-}}" 'host-macos')" || exit 1
+if [[ -z "${PRODUCT_WORK_DIR:-}" && "${TMPDIR:-}" != "$PRODUCT_TEMP_SOURCE/target/"* ]]; then
+  export TMPDIR="$PRODUCT_TARGET_TEMP_ROOT/"
+fi
+WORK_ROOT="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-$PRODUCT_TARGET_TEMP_ROOT}/tuyufactory/host/macos}"
 BUILD="${TUYUFACTORY_BUILD_DIR:-$WORK_ROOT/build}"
 SOURCES="$WORK_ROOT/sources"
 LANGUAGE="$BUILD/language"
@@ -46,8 +58,8 @@ import sys
 source = Path(sys.argv[1]).resolve()
 for value in sys.argv[2:]:
     raw, target = Path(value), Path(value).resolve()
-    if not raw.is_absolute() or target == source or source in target.parents:
-        raise SystemExit(f'TuyuFactory可写目录必须是源码外绝对路径：{value}')
+    if not raw.is_absolute() or source / 'target' not in target.parents:
+        raise SystemExit(f'TuyuFactory可写目录必须是本产品target内绝对路径：{value}')
 CHECK_PATHS
 
 cleanup() {

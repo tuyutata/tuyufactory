@@ -29,8 +29,8 @@ function argumentsMap(values) {
 async function prepare(options) {
   if (Object.keys(options).some(key => !['output', 'platform', 'flutter', 'offline'].includes(key))) fail('SDK准备参数闭集无效');
   const output = resolve(options.output || '');
-  if (!isAbsolute(options.output || '') || output === productRoot || output.startsWith(productRoot + sep)) {
-    fail('output必须是TuyuFactory源码外绝对路径');
+  if (!isAbsolute(options.output || '') || !output.startsWith(join(productRoot, 'target') + sep)) {
+    fail('output必须是TuyuFactorytarget内绝对路径');
   }
   if (existsSync(output)) fail('output必须是全新目录');
   await createProject({ source: applicationRoot, work: realpathSync(dirname(output)), output, platform: options.platform || process.env.TUYU_PLATFORM });

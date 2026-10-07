@@ -48,6 +48,18 @@
         {
           "id": "posix",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -148,8 +160,31 @@
             "id": "xcode",
             "version": "27.0"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "macos-artifact",
+      "files": [
+        "TuyuFactoryHost.app"
+      ],
+      "start": {
+        "entry": "scripts/start.mjs",
+        "artifact": "TuyuFactoryHost.app",
+        "executable": "TuyuFactory"
+      },
+      "verificationPath": "Contents/MacOS/TuyuFactory"
     },
     "host-windows": {
       "tools": [
@@ -196,6 +231,18 @@
         {
           "id": "posix",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -296,8 +343,23 @@
             "id": "xcode",
             "version": "27.0"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "compile-only",
+      "files": []
     },
     "host-linux-arm": {
       "tools": [
@@ -344,6 +406,18 @@
         {
           "id": "posix",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -444,8 +518,23 @@
             "id": "xcode",
             "version": "27.0"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "compile-only",
+      "files": []
     },
     "host-linux-amd": {
       "tools": [
@@ -492,6 +581,18 @@
         {
           "id": "posix",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -592,8 +693,23 @@
             "id": "xcode",
             "version": "27.0"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "compile-only",
+      "files": []
     },
     "client-ios": {
       "tools": [
@@ -628,6 +744,18 @@
         {
           "id": "python",
           "version": "3.14.3"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -696,8 +824,25 @@
             "id": "rust",
             "version": "1.97.1"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "device-install",
+      "files": [
+        "ios.app.zip"
+      ]
     },
     "client-android": {
       "tools": [
@@ -752,6 +897,18 @@
         {
           "id": "xcode",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -852,8 +1009,25 @@
             "id": "rust",
             "version": "1.97.1"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "device-install",
+      "files": [
+        "android.apk"
+      ]
     },
     "client-macos": {
       "tools": [
@@ -888,6 +1062,18 @@
         {
           "id": "python",
           "version": "3.14.3"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -956,8 +1142,31 @@
             "id": "rust",
             "version": "1.97.1"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "macos-artifact",
+      "files": [
+        "TuyuFactoryClient.app"
+      ],
+      "start": {
+        "entry": "scripts/start.mjs",
+        "artifact": "TuyuFactoryClient.app",
+        "executable": null
+      },
+      "verificationPath": "Contents/Info.plist"
     },
     "client-windows": {
       "tools": [
@@ -996,6 +1205,18 @@
         {
           "id": "xcode",
           "version": "27.0"
+        },
+        {
+          "id": "bash",
+          "version": "5.3.20"
+        },
+        {
+          "id": "grep",
+          "version": "3.12"
+        },
+        {
+          "id": "sed",
+          "version": "4.10"
         }
       ],
       "locks": [
@@ -1064,8 +1285,202 @@
             "id": "rust",
             "version": "1.97.1"
           }
-        ]
-      }
+        ],
+        "version_source": {
+          "kind": "pubspec",
+          "path": "app/pubspec.yaml"
+        },
+        "record_source": {
+          "kind": "manifest",
+          "asset_names": [],
+          "metadata_asset": "release-manifest.json",
+          "source_field": "git_commit_sha",
+          "version_field": "software_version",
+          "marker_prefix": "GMB",
+          "immutable": false
+        }
+      },
+      "completion": "compile-only",
+      "files": []
     }
-  }
+  },
+  "remote_routes": [
+    {
+      "canonicalID": "tuyufactory.client-android.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "ci",
+      "platform": "client-android",
+      "expectedTitle": "途遇厂家端 · CI · 分机 Android",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.client-android.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "release",
+      "platform": "client-android",
+      "expectedTitle": "途遇厂家端 · Release · 分机 Android",
+      "tagPrefix": "tuyufactory-client-android-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.client-ios.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "ci",
+      "platform": "client-ios",
+      "expectedTitle": "途遇厂家端 · CI · 分机 iOS",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.client-ios.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "release",
+      "platform": "client-ios",
+      "expectedTitle": "途遇厂家端 · Release · 分机 iOS",
+      "tagPrefix": "tuyufactory-client-ios-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.client-macos.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "ci",
+      "platform": "client-macos",
+      "expectedTitle": "途遇厂家端 · CI · 分机 macOS",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.client-macos.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "release",
+      "platform": "client-macos",
+      "expectedTitle": "途遇厂家端 · Release · 分机 macOS",
+      "tagPrefix": "tuyufactory-client-macos-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.client-windows.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "ci",
+      "platform": "client-windows",
+      "expectedTitle": "途遇厂家端 · CI · 分机 Windows",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.client-windows.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家分机端",
+      "flow": "release",
+      "platform": "client-windows",
+      "expectedTitle": "途遇厂家端 · Release · 分机 Windows",
+      "tagPrefix": "tuyufactory-client-windows-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.host-linux-amd.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "ci",
+      "platform": "host-linux-amd",
+      "expectedTitle": "途遇厂家端 · CI · 主机 LinuxAMD",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.host-linux-amd.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "release",
+      "platform": "host-linux-amd",
+      "expectedTitle": "途遇厂家端 · Release · 主机 LinuxAMD",
+      "tagPrefix": "tuyufactory-host-linux-amd-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.host-linux-arm.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "ci",
+      "platform": "host-linux-arm",
+      "expectedTitle": "途遇厂家端 · CI · 主机 LinuxARM",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.host-linux-arm.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "release",
+      "platform": "host-linux-arm",
+      "expectedTitle": "途遇厂家端 · Release · 主机 LinuxARM",
+      "tagPrefix": "tuyufactory-host-linux-arm-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.host-macos.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "ci",
+      "platform": "host-macos",
+      "expectedTitle": "途遇厂家端 · CI · 主机 macOS",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.host-macos.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "release",
+      "platform": "host-macos",
+      "expectedTitle": "途遇厂家端 · Release · 主机 macOS",
+      "tagPrefix": "tuyufactory-host-macos-v",
+      "recordsFormalRelease": true
+    },
+    {
+      "canonicalID": "tuyufactory.host-windows.ci",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "ci",
+      "platform": "host-windows",
+      "expectedTitle": "途遇厂家端 · CI · 主机 Windows",
+      "tagPrefix": null,
+      "recordsFormalRelease": false
+    },
+    {
+      "canonicalID": "tuyufactory.host-windows.release",
+      "repository": "tuyufactory",
+      "productID": "tuyufactory",
+      "productTitle": "途遇厂家主机端",
+      "flow": "release",
+      "platform": "host-windows",
+      "expectedTitle": "途遇厂家端 · Release · 主机 Windows",
+      "tagPrefix": "tuyufactory-host-windows-v",
+      "recordsFormalRelease": true
+    }
+  ],
+  "flow_entry": "scripts/flow.mjs"
 }

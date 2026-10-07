@@ -238,7 +238,8 @@ function directory(value, label) {
 }
 function parameters({ source, work, output, platform = process.env.TUYU_PLATFORM || (process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux') }) {
   directory(source, '源码根'); directory(work, '工作根');
-  if (inside(source, work) || inside(work, source)) fail('工作根与源码根必须分离');
+  const owner = source === resolve(dirname(fileURLToPath(import.meta.url)), '..') ? dirname(source) : source;
+  if (!inside(join(owner, 'target'), work) || work === join(owner, 'target')) fail('工作根必须位于本产品target内');
   if (!platforms.has(platform)) fail('平台无效');
   output ??= join(work, 'flutter-project', source.replace(/^[A-Za-z]:[\\/]|^[\\/]+/u, ''));
   if (!isAbsolute(output) || resolve(output) !== output || !inside(work, output) || output === work) fail('输出须属于本次工作根');

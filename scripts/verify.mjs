@@ -203,8 +203,8 @@ export function packageDestination(work, destination, role, platform, environmen
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
   }
-  if (work === source || packageInside(source, work) || !packageInside(work, destination)) {
-    throw new Error('厂家打包必须使用产品源码外工作目录');
+  if (!packageInside(join(source, 'target'), work) || work === join(source, 'target') || !packageInside(work, destination)) {
+    throw new Error('厂家打包必须使用本产品target工作目录');
   }
   try { lstatSync(destination); throw new Error('厂家打包不得覆盖现存目标'); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }

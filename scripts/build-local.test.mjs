@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { testRoot as tmpdir } from './build.mjs';
 import test from 'node:test';
 
 // 真实执行本产品Build入口。夹具仅替代平台编译器和已由project.test验真的视图装配，不下载或签名。

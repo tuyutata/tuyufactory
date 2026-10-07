@@ -3,9 +3,9 @@ import {test} from 'node:test';
 import {spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {existsSync,lstatSync,mkdtempSync,readFileSync,readdirSync,realpathSync,rmSync,mkdirSync,symlinkSync,writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import { testRoot as tmpdir } from './build.mjs';
 import {dirname,join,resolve} from 'node:path';
-import {contract,requirements,resourceEnvironment,checkWork,createView,checkArchives,prepareGradle} from './build.mjs';
+import {contract,requirements,resourceEnvironment,checkWork,productTarget,createView,checkArchives,prepareGradle} from './build.mjs';
 
 const sandbox=()=>realpathSync(mkdtempSync(join(tmpdir(),contract.product_id+'-build-contract-')));
 const root=resolve(import.meta.dirname,'..'),base=existsSync(join(root,'app/pubspec.yaml'))?join(root,'app'):root;
@@ -33,7 +33,7 @@ test('每个平台从自身原始锁只读提出需求；缺失原始Pod锁按�
 test('平台、源码内工作根和链接工作根在任何写入前拒绝',async()=>{
  const work=sandbox();try{
   await assert.rejects(async()=>requirements('unknown',work),/平台/);
-  assert.throws(()=>checkWork(root),/源码外/);
+  assert.throws(()=>checkWork(root),/本产品target/);
   mkdirSync(join(work,'actual'));symlinkSync(join(work,'actual'),join(work,'linked'));
   assert.throws(()=>checkWork(join(work,'linked')),/链接/);
  }finally{rmSync(work,{recursive:true});}
@@ -114,4 +114,216 @@ test('独立命令行从自身声明输出JSON，未知平台失败且不写工�
   const invalid=spawnSync(process.execPath,[join(root,'scripts/build.mjs'),'requirements','unknown','--work',work],{env:{HOME:work},encoding:'utf8'});
   assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/平台/);
  }finally{rmSync(work,{recursive:true});}
+});
+
+// 完整入口控制边界：替身只替换耗时阶段，不调用真实编译或用户安全存储。
+test('产品独立execute完成全部自有阶段后才返回唯一结果',async()=>{
+ const {execute,outputDigest}=await import('./build.mjs');const work=sandbox(),platform=Object.keys(contract.platforms)[0],declared=contract.platforms[platform],calls=[];
+ try{
+  const result={schema:1,product_id:contract.product_id,platform,work,completion:declared.completion,run_id:'123456789',files:[]};
+  const stages={requirements:async()=>{calls.push('requirements');},resources:async()=>{calls.push('resources');return {};},prepare:async()=>{calls.push('prepare');},build:async()=>{
+   calls.push('build');for(const name of declared.files){const path=join(work,name);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,'isolated-candidate-fixture');result.files.push({path,sha256:outputDigest(path)});}return result;
+  }};
+  assert.deepEqual(await execute(platform,work,{run_id:'123456789'},{stages}),result);
+  assert.deepEqual(calls,['requirements','resources','prepare','requirements','resources','build']);
+  assert.deepEqual(JSON.parse(readFileSync(join(work,'build-result.json'),'utf8')),result);
+  await assert.rejects(execute(platform,work,{}, {stages}),/已有结果/);
+ }finally{rmSync(work,{recursive:true});}
+});
+test('失败、取消、并发和伪造终态不能复用工作根或留下成功回执',async()=>{
+ const {execute}=await import('./build.mjs'),platform=Object.keys(contract.platforms)[0];
+ for(const failure of ['resources','prepare','build','identity','cancel']){
+  const work=sandbox(),abort=new AbortController(),calls=[];
+  try{
+   const stages={requirements:()=>{},resources:async()=>{calls.push('resources');if(failure==='resources')throw Error('fixture failure');return {};},prepare:async()=>{calls.push('prepare');if(failure==='prepare')throw Error('fixture failure');if(failure==='cancel')abort.abort();},build:async()=>{calls.push('build');if(failure==='build')throw Error('fixture failure');return {schema:1,product_id:'forged'};}};
+   await assert.rejects(execute(platform,work,{}, {stages,signal:abort.signal}));
+   assert.equal(existsSync(join(work,'build-result.json')),false);assert.equal(existsSync(join(work,'.product-build.lock')),false);
+   if(['resources','prepare','cancel'].includes(failure))assert.equal(calls.includes('build'),false);
+  }finally{rmSync(work,{recursive:true});}
+ }
+ const work=sandbox();try{writeFileSync(join(work,'.product-build.lock'),'owned');await assert.rejects(execute(platform,work,{}));assert.equal(readFileSync(join(work,'.product-build.lock'),'utf8'),'owned');}finally{rmSync(work,{recursive:true});}
+});
+
+test('Android多USB、包路径、证书和开发材料异常由产品拒绝',async()=>{
+ const {androidUSBSerials,androidInstalledPath,androidCertificate,parseAndroidSigning}=await import('./build.mjs');
+ assert.deepEqual(androidUSBSerials('List of devices attached\nA device usb:1\nB device usb:2\nemulator-1 device transport_id:3\n'),['A','B']);
+ for(const list of ['List of devices attached\nA offline usb:1\nB device usb:2','List of devices attached\nA device usb:1\nA device usb:2','List of devices attached\nA device usb:1'])assert.throws(()=>androidUSBSerials(list));
+ assert.equal(androidInstalledPath({code:1,stdout:'',stderr:''}),null);
+ assert.equal(androidInstalledPath({code:0,stdout:'package:/data/app/abc/base.apk\n',stderr:''}),'/data/app/abc/base.apk');
+ for(const value of [{code:1,stdout:'',stderr:'device offline'},{code:0,stdout:'package:/data/app/../base.apk',stderr:''},{code:0,stdout:'package:/data/app/a/base.apk\npackage:/data/app/b/base.apk',stderr:''}])assert.throws(()=>androidInstalledPath(value));
+ const cert='a'.repeat(64);assert.equal(androidCertificate('Verified using v2 scheme (APK Signature Scheme v2): true\nSigner #1 certificate SHA-256 digest: '+cert),cert);
+ assert.throws(()=>androidCertificate('Signer #1 certificate SHA-256 digest: '+cert));assert.throws(()=>parseAndroidSigning(Buffer.from('keystore=bad\npassword=fixture').toString('base64')));
+});
+test('iOS设备、过滤包标识、bundleVersion与版本比较归产品',async()=>{
+ const {iosDeviceCandidates,iosInstalled,iosVersion}=await import('./build.mjs');
+ const identifier='12345678-1234-1234-1234-123456789abc',udid='12345678-123456789abcdef0',bundle='fixture.product';
+ const device={identifier,properties:{hardware:{reality:'physical',platform:'iOS',udid},connection:{pairingState:'paired'},state:{developerModeStatus:{enabled:{mode:1}}}}};
+ assert.deepEqual(iosDeviceCandidates({info:{outcome:'success'},result:{devices:[device]}}),[{identifier,udid}]);
+ assert.deepEqual(iosDeviceCandidates({info:{outcome:'success'},result:{devices:[{...device,properties:{...device.properties,hardware:{...device.properties.hardware,reality:'virtual'}}}]}}),[]);
+ const readback={info:{outcome:'success'},result:{deviceIdentifier:identifier,matchingBundleIdentifier:bundle,apps:[{bundleIdentifier:bundle,version:'1.2',bundleVersion:'3'}]}};
+ assert.deepEqual(iosInstalled(readback,identifier,bundle),{version:'1.2',build:'3'});
+ assert.throws(()=>iosInstalled(readback,'wrong-device',bundle));assert.throws(()=>iosInstalled({...readback,result:{...readback.result,apps:[{bundleIdentifier:bundle,version:'1.2',buildVersion:'3'}]}},identifier,bundle));
+ assert.deepEqual(iosVersion('1.2'),iosVersion('1.2.0'));assert.throws(()=>iosVersion('1.2-beta'));
+});
+
+// 原控制台profile/entitlement用例迁到产品Swift验真器；最终统一验收交付已验真的Xcode环境。
+const iosContractFixture=[
+ "import XCTest",
+ "final class ProductIOSContractTests: XCTestCase {",
+ "    @objc func testProductIOSReleaseSettingsRequireUniqueRunnerAndRelease() throws {",
+ "        // 工程级设置允许被唯一 Runner Release 覆盖；Debug 或其它目标不能成为签名配置来源。",
+ "        let objects: [String: [String: Any]] = [",
+ "            \"project\": [\"targets\": [\"runner\"], \"buildConfigurationList\": \"project-list\"],",
+ "            \"runner\": [\"name\": \"Runner\", \"productType\": \"com.apple.product-type.application\", \"buildConfigurationList\": \"runner-list\"],",
+ "            \"project-list\": [\"buildConfigurations\": [\"project-release\"]],",
+ "            \"runner-list\": [\"buildConfigurations\": [\"runner-debug\", \"runner-release\"]],",
+ "            \"project-release\": [\"name\": \"Release\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"PROJECT001\", \"SDKROOT\": \"iphoneos\"]],",
+ "            \"runner-release\": [\"name\": \"Release\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"RUNNER0001\", \"PRODUCT_BUNDLE_IDENTIFIER\": \"com.example.local\"]],",
+ "            \"runner-debug\": [\"name\": \"Debug\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"DEBUG00001\"]],",
+ "        ]",
+ "        let values = try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": objects])",
+ "        XCTAssertEqual(values[\"DEVELOPMENT_TEAM\"] as? String, \"RUNNER0001\")",
+ "        XCTAssertEqual(values[\"PRODUCT_BUNDLE_IDENTIFIER\"] as? String, \"com.example.local\")",
+ "        XCTAssertEqual(values[\"SDKROOT\"] as? String, \"iphoneos\")",
+ "        var missingRunner = objects",
+ "        missingRunner[\"project\"]?[\"targets\"] = [String]()",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": missingRunner]))",
+ "        for list in [\"project-list\", \"runner-list\"] {",
+ "            var missingRelease = objects",
+ "            missingRelease[list]?[\"buildConfigurations\"] = [String]()",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": missingRelease]))",
+ "            var duplicateRelease = objects",
+ "            duplicateRelease[\"extra-release\"] = [\"name\": \"Release\", \"buildSettings\": [:] as [String: Any]]",
+ "            duplicateRelease[list]?[\"buildConfigurations\"] = [list == \"project-list\" ? \"project-release\" : \"runner-release\", \"extra-release\"]",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": duplicateRelease]))",
+ "        }",
+ "        var duplicateRunner = objects",
+ "        duplicateRunner[\"runner-two\"] = objects[\"runner\"]",
+ "        duplicateRunner[\"project\"]?[\"targets\"] = [\"runner\", \"runner-two\"]",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": duplicateRunner]))",
+ "    }",
+ "",
+ "    private func localIOSProfile() -> [String: Any] {",
+ "        [\"TeamIdentifier\": [\"TEAMTEST01\"], \"ApplicationIdentifierPrefix\": [\"TEAMTEST01\"],",
+ "         \"CreationDate\": Date(timeIntervalSince1970: 1), \"ExpirationDate\": Date(timeIntervalSince1970: 1000),",
+ "         \"Platform\": [\"iOS\"], \"ProvisionedDevices\": [\"device-one\"],",
+ "         \"Entitlements\": [\"application-identifier\": \"TEAMTEST01.com.example.*\",",
+ "             \"com.apple.developer.team-identifier\": \"TEAMTEST01\", \"get-task-allow\": true,",
+ "             \"keychain-access-groups\": [\"TEAMTEST01.*\"], \"aps-environment\": \"development\"]]",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileOnlyGrantsRequestedCapabilities() throws {",
+ "        let values = try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertNil(values[\"aps-environment\"])",
+ "        XCTAssertEqual(values[\"application-identifier\"] as? String, \"TEAMTEST01.com.example.local\")",
+ "        XCTAssertEqual(values[\"get-task-allow\"] as? Bool, true)",
+ "        XCTAssertNil(values[\"keychain-access-groups\"])",
+ "        let requested: [String: Any] = [",
+ "            \"keychain-access-groups\": [\"$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)\"],",
+ "            \"aps-environment\": \"$(APS_ENVIRONMENT)\"]",
+ "        let requestedValues = try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: requested, now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertEqual(requestedValues[\"keychain-access-groups\"] as? [String], [\"TEAMTEST01.com.example.local\"])",
+ "        XCTAssertEqual(requestedValues[\"aps-environment\"] as? String, \"development\")",
+ "        var distribution = localIOSProfile()",
+ "        var distributionEntitlements = try XCTUnwrap(distribution[\"Entitlements\"] as? [String: Any])",
+ "        distributionEntitlements[\"get-task-allow\"] = false",
+ "        distribution[\"Entitlements\"] = distributionEntitlements",
+ "        let distributionValues = try ProductIOSContract.iosEntitlements(profile: distribution, team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertEqual(distributionValues[\"get-task-allow\"] as? Bool, false)",
+ "    }",
+ "",
+ "    @objc func testProductIOSSignedEntitlementsAcceptOnlyExactSecurityFrameworkAliases() {",
+ "        let expected: [String: Any] = [\"application-identifier\": \"TEAMTEST01.com.example.local\",",
+ "            \"aps-environment\": \"development\",",
+ "            \"com.apple.developer.team-identifier\": \"TEAMTEST01\", \"get-task-allow\": false]",
+ "        var actual = expected",
+ "        actual[\"com.apple.application-identifier\"] = \"TEAMTEST01.com.example.local\"",
+ "        actual[\"com.apple.developer.aps-environment\"] = \"development\"",
+ "        XCTAssertTrue(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual[\"com.apple.application-identifier\"] = \"TEAMTEST01.com.other\"",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual = expected",
+ "        actual[\"com.apple.developer.aps-environment\"] = \"production\"",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual = expected",
+ "        actual[\"unexpected-capability\"] = true",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileRejectsWrongIdentityDeviceExpiryAndPermissions() throws {",
+ "        for (key, value) in [(\"TeamIdentifier\", [\"OTHERTEAM1\"] as Any), (\"ProvisionedDevices\", [\"other-device\"] as Any),",
+ "                             (\"ExpirationDate\", Date(timeIntervalSince1970: 99) as Any), (\"CreationDate\", Date(timeIntervalSince1970: 101) as Any),",
+ "                             (\"Platform\", [\"macOS\"] as Any)] {",
+ "            var profile = localIOSProfile()",
+ "            profile[key] = value",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(profile: profile, team: \"TEAMTEST01\",",
+ "                bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100)))",
+ "        }",
+ "        for requested: [String: Any] in [[\"get-task-allow\": true], [\"not-authorized\": true],",
+ "            [\"application-identifier\": \"TEAMTEST01.com.other.app\"], [\"application-identifier\": 7],",
+ "            [\"com.apple.developer.team-identifier\": [\"TEAMTEST01\"]], [\"keychain-access-groups\": [\"OTHERTEAM1.app\"]]] {",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "                bundleID: \"com.example.local\", device: \"device-one\", requested: requested, now: Date(timeIntervalSince1970: 100)))",
+ "        }",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileRejectsUnknownEntitlementVariables() throws {",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(",
+ "            profile: localIOSProfile(), team: \"TEAMTEST01\", bundleID: \"com.example.local\",",
+ "            device: \"device-one\", requested: [\"aps-environment\": \"$(UNKNOWN_ENVIRONMENT)\"],",
+ "            now: Date(timeIntervalSince1970: 100)))",
+ "    }",
+ "",
+ "}",
+].join('\n');
+test('产品Security验真器拒绝错误Release配置、profile授权和entitlement变量',async()=>{
+ const {IOS_VERIFIER_SOURCE}=await import('./build.mjs'),work=sandbox();
+ try{
+  const swift=process.env.PRODUCT_TEST_SWIFT,developer=process.env.PRODUCT_TEST_DEVELOPER_DIR;
+  assert.ok(swift&&developer,'统一验收须显式交付产品锁定Xcode的PRODUCT_TEST_SWIFT和PRODUCT_TEST_DEVELOPER_DIR');
+  // 官方swift入口是包内链接；核验规范目标属于同一Xcode并具执行权限。
+  const actualSwift=realpathSync(swift);assert.ok(actualSwift.startsWith(realpathSync(developer)+'/'));
+  assert.ok(swift.startsWith(developer+'/'));assert.ok(lstatSync(actualSwift).isFile()&&(lstatSync(actualSwift).mode&0o111));
+  const main=IOS_VERIFIER_SOURCE.indexOf('\ndo {\n let bytes = FileHandle.standardInput');assert.ok(main>0);
+  const source=join(work,'ios-contract.swift'),bundle=join(work,'IOSVerifierTests.xctest'),binary=join(bundle,'Contents/MacOS/IOSVerifierTests'),frameworks=join(developer,'Platforms/MacOSX.platform/Developer/Library/Frameworks');
+  mkdirSync(join(bundle,'Contents/MacOS'),{recursive:true});
+  writeFileSync(join(bundle,'Contents/Info.plist'),'<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>IOSVerifierTests</string><key>CFBundleIdentifier</key><string>test.product.ios-verifier</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>');
+  writeFileSync(source,IOS_VERIFIER_SOURCE.slice(0,main)+'\n'+iosContractFixture);
+  const compiler=join(developer,'Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc');
+  assert.ok(realpathSync(compiler).startsWith(realpathSync(developer)+'/'));
+  const compiled=spawnSync(compiler,['-emit-library','-module-name','IOSVerifierTests','-module-cache-path',join(work,'module-cache'),'-F',frameworks,'-I',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-L',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-Xlinker','-rpath','-Xlinker',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-framework','Security','-framework','CryptoKit','-framework','XCTest','-Xlinker','-rpath','-Xlinker',frameworks,source,'-o',binary],{encoding:'utf8',env:process.env});
+  assert.equal(compiled.status,0,compiled.stderr);
+  // Apple XCTest由同一登记Xcode的正式runner加载真实测试Bundle，不能使用其它平台的XCTMain。
+  const runner=join(developer,'usr/bin/xctest');assert.ok(realpathSync(runner).startsWith(realpathSync(developer)+'/'));
+  const trusted=spawnSync('/usr/bin/codesign',['--verify','--strict','--all-architectures',runner],{encoding:'utf8',env:process.env});assert.equal(trusted.status,0,trusted.stderr);
+  const checked=spawnSync(runner,[bundle],{encoding:'utf8',env:process.env,timeout:60000});assert.equal(checked.status,0,checked.stdout+checked.stderr);
+  assert.match(checked.stdout+checked.stderr,/Executed 5 tests, with 0 failures/u);
+ }finally{rmSync(work,{recursive:true});}
+});
+
+test('产品取消等待工具进程组退出，不提前交付结果',async()=>{
+ const {runBuildProcess}=await import('./build.mjs'),work=sandbox(),abort=new AbortController();let polling,deadline;
+ try{
+  const pidFile=join(work,'descendant.pid');
+  const script="const fs=require('node:fs'),{spawn}=require('node:child_process');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});fs.writeFileSync(process.argv[1],String(child.pid));setInterval(()=>{},1000);";
+  const execution=runBuildProcess(process.execPath,['-e',script,pidFile],process.env,work,{capture:true,signal:abort.signal,timeout:5000});
+  polling=setInterval(()=>{if(existsSync(pidFile))abort.abort();},20);deadline=setTimeout(()=>abort.abort(),2000);
+  await assert.rejects(execution,/取消/);assert.ok(existsSync(pidFile));const pid=Number(readFileSync(pidFile,'utf8'));
+  assert.throws(()=>process.kill(pid,0),error=>error.code==='ESRCH');
+ }finally{clearInterval(polling);clearTimeout(deadline);rmSync(work,{recursive:true});}
+});
+
+// 覆盖独立入口、单/多平台物理边界和源码输入排除，统一测试阶段才执行。
+test('本仓target由当前平台声明决定，外部或链接工作根不能越界',()=>{
+ for(const platform of Object.keys(contract.platforms)){
+  const expected=join(root,'target',...(Object.keys(contract.platforms).length===1?[]:[platform]));
+  assert.equal(productTarget(platform),expected);
+ }
+ assert.throws(()=>productTarget('undeclared-platform'));
+ assert.throws(()=>checkWork(join(root,'..','foreign-work')),/target/);
+ assert.throws(()=>checkWork(join(root,'target')),/target/);
+ const work=sandbox();try{assert.equal(checkWork(work),work);}finally{rmSync(work,{recursive:true,force:true});}
 });

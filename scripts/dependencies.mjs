@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { remoteEnvironment as productRemoteEnvironment } from './build.mjs';
+if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 // 厂家分机Windows依赖只读取本产品固定声明，在本轮源码外目录下载并验真。
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -33,7 +35,7 @@ async function ordinaryDirectory(path) {
 async function taskWork(work, environment) {
   if (process.platform !== 'win32' || process.arch !== 'x64') fail('只允许Windows x64');
   const info = await ordinaryDirectory(work);
-  if (work === productRoot || work.startsWith(productRoot + sep)
+  if (!work.startsWith(join(productRoot, 'target', 'client-windows') + sep)
     || environment.TUYU_PRODUCT !== 'tuyufactory-client' || environment.TUYU_PLATFORM !== 'windows'
     || environment.TUYUFACTORY_WORK_DIR !== work) fail('工作根或产品平台身份不一致');
   if (environment.GITHUB_ACTIONS === 'true') {

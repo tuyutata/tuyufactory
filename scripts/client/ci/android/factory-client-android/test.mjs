@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { testRoot as tmpdir } from '../../../../build.mjs';
 import { join } from 'node:path';
 import test from 'node:test';
 

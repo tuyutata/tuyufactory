@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { remoteEnvironment as productRemoteEnvironment } from '../../../build.mjs';
+if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 // CI_BUILD: incremental
 // TUYUFACTORY_CLIENT_ENTRY_CONTRACT: 同一构建入口供CI载荷检查和Release签名前构建复用。
 import { execFileSync } from 'node:child_process';

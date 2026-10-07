@@ -1,7 +1,10 @@
+import { remoteEnvironment as productRemoteEnvironment } from './build.mjs';
+if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 import assert from 'node:assert/strict';
 import { readFileSync, realpathSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { testRoot } from './build.mjs';
+const tmpdir=()=>testRoot('client-macos');
 import { spawnSync } from 'node:child_process';
 import { crc32 } from 'node:zlib';
 import test from 'node:test';
@@ -327,7 +330,7 @@ import assert from 'node:assert/strict';
 import {win32} from 'node:path';
 import {SourceTextModule,SyntheticModule,createContext} from 'node:vm';
 const files=new Map(${JSON.stringify(serialized)}.map(([path,value])=>[path,Buffer.from(value,'base64')]));
-const root='D:\\\\runner\\\\temp\\\\tuyufactory-client-windows', output=root+'\\\\output';
+const root='D:\\\\product\\\\target\\\\client-windows\\\\test\\\\fixture', output=root+'\\\\output';
 let identityFailure=false;
 const context=createContext({process:{argv:[],env:{},platform:'win32',arch:'x64'},Buffer,URL,console});
 async function synthetic(values){const m=new SyntheticModule(Object.keys(values),function(){for(const[k,v]of Object.entries(values))this.setExport(k,v);},{context});await m.link(()=>{});await m.evaluate();return m;}

@@ -13,7 +13,19 @@ case "$PLATFORM" in
   *) echo '厂家Linux目标未登记' >&2; exit 1 ;;
 esac
 export TUYUFACTORY_PLATFORM="$PLATFORM"
-WORK_ROOT="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-/tmp}/tuyufactory/host/$PLATFORM}"
+# 所有独立入口的工具临时状态归本产品target；宿主已交付的产品工作根继续归当前任务。
+PRODUCT_TEMP_SCRIPT="${BASH_SOURCE[0]}"
+while [[ -L "$PRODUCT_TEMP_SCRIPT" ]]; do
+  PRODUCT_TEMP_LINK="$(readlink "$PRODUCT_TEMP_SCRIPT")"
+  [[ "$PRODUCT_TEMP_LINK" == /* ]] || PRODUCT_TEMP_LINK="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")" && pwd -P)/$PRODUCT_TEMP_LINK"
+  PRODUCT_TEMP_SCRIPT="$PRODUCT_TEMP_LINK"
+done
+PRODUCT_TEMP_SOURCE="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")/.." && pwd -P)"
+PRODUCT_TARGET_TEMP_ROOT="$("${PRODUCT_NODE_BIN:-${NODE:-node}}" "$PRODUCT_TEMP_SOURCE/scripts/build.mjs" temporary-root "${PLATFORM:-${platform:-}}" 'host-macos')" || exit 1
+if [[ -z "${PRODUCT_WORK_DIR:-}" && "${TMPDIR:-}" != "$PRODUCT_TEMP_SOURCE/target/"* ]]; then
+  export TMPDIR="$PRODUCT_TARGET_TEMP_ROOT/"
+fi
+WORK_ROOT="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-$PRODUCT_TARGET_TEMP_ROOT}/tuyufactory/host/$PLATFORM}"
 BUILD="${TUYUFACTORY_BUILD_DIR:-$WORK_ROOT/build}"
 DEPENDENCY_ROOT="${TUYUFACTORY_DEPENDENCY_DIR:-$WORK_ROOT/dependencies}"
 export TUYUFACTORY_DEPENDENCY_DIR="$DEPENDENCY_ROOT"
@@ -39,7 +51,7 @@ function canonical(path) {
   }
 }
 canonical(work); canonical(destination);
-if (work === source || work.startsWith(source + '/')) throw new Error('厂家工作目录必须位于产品源码外');
+if (!work.startsWith(source + '/target/')) throw new Error('厂家工作目录必须位于产品源码外');
 if (!destination.startsWith(work + '/') || existsSync(destination)) throw new Error('厂家目标必须是当前任务内的新运行包');
 for (const child of ['build', 'sources']) {
   const path = join(work, child);

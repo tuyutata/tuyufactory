@@ -12,6 +12,18 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+# 测试临时数据归产品当前工作现场；没有注入现场时使用宿主平台test。
+_product_root = Path(__file__).resolve().parents[1]
+_test_platform = "host-macos" if sys.platform == "darwin" else "host-windows" if sys.platform == "win32" else "host-linux-arm" if os.uname().machine in ("aarch64", "arm64") else "host-linux-amd"
+_test_target = _product_root / "target"
+_supplied_temp = Path(os.environ.get("TMPDIR", str(_test_target / _test_platform / "test")))
+_test_temp = _supplied_temp if _test_target in _supplied_temp.parents else _test_target / _test_platform / "test"
+for _ancestor in reversed((_test_temp, *_test_temp.parents)):
+    if _ancestor.is_symlink() or (_ancestor.exists() and not _ancestor.is_dir()):
+        raise ValueError("测试目录禁止链接或非目录")
+    _ancestor.mkdir(exist_ok=True)
+tempfile.tempdir = str(_test_temp)
+
 sys.path.insert(0, str(ROOT))
 
 from runtime_common import read_config, write_private_json

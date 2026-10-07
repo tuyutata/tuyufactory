@@ -8,7 +8,19 @@ NATIVE_LIBRARY="${2:?usage: package_macos.sh APP NATIVE_LIBRARY RUNTIME OUTPUT}"
 RUNTIME="${3:?usage: package_macos.sh APP NATIVE_LIBRARY RUNTIME OUTPUT}"
 OUTPUT="${4:?usage: package_macos.sh APP NATIVE_LIBRARY RUNTIME OUTPUT}"
 IDENTITY="${CODE_SIGN_IDENTITY:--}"
-TUYUFACTORY_WORK_DIR="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-/tmp}/tuyufactory/host/macos}"
+# 所有独立入口的工具临时状态归本产品target；宿主已交付的产品工作根继续归当前任务。
+PRODUCT_TEMP_SCRIPT="${BASH_SOURCE[0]}"
+while [[ -L "$PRODUCT_TEMP_SCRIPT" ]]; do
+  PRODUCT_TEMP_LINK="$(readlink "$PRODUCT_TEMP_SCRIPT")"
+  [[ "$PRODUCT_TEMP_LINK" == /* ]] || PRODUCT_TEMP_LINK="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")" && pwd -P)/$PRODUCT_TEMP_LINK"
+  PRODUCT_TEMP_SCRIPT="$PRODUCT_TEMP_LINK"
+done
+PRODUCT_TEMP_SOURCE="$(cd "$(dirname "$PRODUCT_TEMP_SCRIPT")/.." && pwd -P)"
+PRODUCT_TARGET_TEMP_ROOT="$("${PRODUCT_NODE_BIN:-${NODE:-node}}" "$PRODUCT_TEMP_SOURCE/scripts/build.mjs" temporary-root "${PLATFORM:-${platform:-}}" 'host-macos')" || exit 1
+if [[ -z "${PRODUCT_WORK_DIR:-}" && "${TMPDIR:-}" != "$PRODUCT_TEMP_SOURCE/target/"* ]]; then
+  export TMPDIR="$PRODUCT_TARGET_TEMP_ROOT/"
+fi
+TUYUFACTORY_WORK_DIR="${TUYUFACTORY_WORK_DIR:-${TMPDIR:-$PRODUCT_TARGET_TEMP_ROOT}/tuyufactory/host/macos}"
 
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] \
   || { echo '厂家端 macOS 包只能在真实 macOS 主机生成' >&2; exit 1; }
