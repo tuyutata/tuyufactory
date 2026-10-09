@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {withFixedWork,remoteStep,fixedWork} from '../../../../target.mjs';
 import { remoteEnvironment as productRemoteEnvironment } from '../../../../build.mjs';
 if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 import { spawnSync as runExactProcess } from 'node:child_process';
@@ -175,14 +176,7 @@ export function cachePathPlan(identity, runnerTemp, entries) {
       throw new Error(`缓存相对路径无效：${name}`);
     }
   }
-  const digest = createHash('sha256').update(identity.baseKey).digest('hex').slice(0, 20);
-  const rootName = `${identity.product}-${identity.platform}-${identity.component}-${digest}`;
-  const root = pathApi.resolve(temp, 'ci-cache', rootName);
-  const expectedParent = pathApi.resolve(temp, 'ci-cache');
-  const relative = pathApi.relative(expectedParent, root);
-  if (!relative || relative.startsWith('..') || pathApi.isAbsolute(relative)) {
-    throw new Error('缓存根目录逃出Runner临时目录');
-  }
+  const root = pathApi.resolve(temp, 'cache');
   return Object.freeze({
     root,
     successPaths: names.map((name) => pathApi.join(root, ...name.split('/'))),
@@ -222,7 +216,7 @@ export function wireCacheLinks(identity, runnerTemp, entries, workspace, links) 
     const cacheRelative = row.slice(separator + 1);
     relativeEntries(sourceRelative, '工作区生成目录');
     relativeEntries(cacheRelative, '受控缓存目录');
-    const source = resolvedChild(pathApi, workspaceRoot, sourceRelative, '工作区生成目录');
+    const source = resolvedChild(pathApi, pathApi.resolve(runnerTemp,'source'), sourceRelative, '工作区生成目录');
     const target = resolvedChild(pathApi, plan.root, cacheRelative, '受控缓存目录');
     mkdirSync(pathApi.dirname(source), { recursive: true });
     mkdirSync(target, { recursive: true });

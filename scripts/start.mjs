@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {claimFixedWork,releaseFixedWork} from './target.mjs';
+import {fixedScratch} from './target.mjs';
 // 本产品唯一桌面启动入口：资源、候选验证与启动自行完成；调用方只给出产物位置。
 import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync,mkdtempSync,rmSync,writeSync} from 'node:fs';
@@ -48,12 +50,12 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
  const [command,platform,flag,artifact,...extra]=process.argv.slice(2);
  if(command!=='start'||flag!=='--artifact'||extra.length)fail('固定入口参数无效');
  startArtifact(artifact,startDeclaration(platform));
- const work=realpathSync(mkdtempSync(join(tmpdir(),startDeclaration(platform).product+'-start-')));
+ const session=claimFixedWork('test'),work=session.owner.work;
  const cancellation=new AbortController();for(const event of ['SIGTERM','SIGINT'])process.once(event,()=>cancellation.abort());
  let unconfirmed=false;
  try {
   const publicEnv=Object.fromEntries(['HOME','USER','LOGNAME','LANG','LC_ALL','PRODUCT_TOOL_ROOT','PRODUCT_DEPENDENCY_ROOT','PRODUCT_RESULT_FD'].filter(key=>typeof process.env[key]==='string').map(key=>[key,process.env[key]]));
-  const options={signal:cancellation.signal,environment:publicEnv};const node=await bootstrapNode(work,options);
+  publicEnv.PRODUCT_WORK_LEASE=session.owner.nonce;const options={signal:cancellation.signal,environment:publicEnv};const node=await bootstrapNode(work,options);
   if(createHash('sha256').update(readFileSync(process.execPath)).digest('hex')!==createHash('sha256').update(readFileSync(node.path)).digest('hex')) {
    const result=await runBuildProcess(node.path,[fileURLToPath(import.meta.url),...process.argv.slice(2)],publicEnv,root,{signal:cancellation.signal,capture:true,streamError:true,passHost:publicEnv.PRODUCT_RESULT_FD==='3'});
    if(publicEnv.PRODUCT_RESULT_FD!=='3')process.stdout.write(result.stdout);
@@ -64,5 +66,5 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
    else process.stdout.write(bytes);
   }
  } catch(error) { unconfirmed=String(error.message).includes('退出未确认');throw error; }
- finally { if(!unconfirmed)rmSync(work,{recursive:true}); }
+ finally { releaseFixedWork(session,{unsafe:unconfirmed}); }
 }

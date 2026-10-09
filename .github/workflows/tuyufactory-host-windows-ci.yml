@@ -179,3 +179,7 @@ jobs:
         CI_CACHE_TERMINAL_STATE: success
       shell: bash
       run: node "$GITHUB_WORKSPACE/scripts/host/ci/windows/factory-host-windows/execute.mjs" workflow-step 11
+    - name: 清空本产品固定构建目录
+      if: always()
+      shell: bash
+      run: node "$GITHUB_WORKSPACE/scripts/target.mjs" finish build

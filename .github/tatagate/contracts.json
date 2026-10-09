@@ -44,7 +44,8 @@
     "scripts/host/release/macos/factory-host-macos/test.mjs",
     "scripts/host/release/windows/factory-host-windows/test.mjs",
     "scripts/resources.test.mjs",
-    "scripts/start.test.mjs"
+    "scripts/start.test.mjs",
+    "scripts/target.test.mjs"
   ],
   "checks": [
     "repository-contracts"
