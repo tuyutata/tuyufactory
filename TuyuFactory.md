@@ -1,10 +1,24 @@
 # 途遇厂家端技术文档
 
+## 工具与依赖的声明和供给职责（2026-10-08）
+
+本产品完全独立管理全部流程所需的工具、依赖及其它资源需求。需求唯一依据为本仓源码、公开声明、锁文件及本产品拥有的准备配方，包括准确版本、平台、官方来源、摘要或固定提交、闭包、验真方式和失败条件；塔塔控制台按当前产品声明提供资源，不维护另一份产品需求或替产品决定版本、来源与流程步骤。
+
+本产品必须能在没有塔塔控制台时完全独立执行全部已实现流程。独立执行时，本产品自行完成可信引导、资源获取、验真、保存、复用及任务工作视图准备，不依赖控制台源码、私有资料、安装位置或资源库。
+
+通过塔塔控制台执行本产品流程时，本产品向控制台声明所需资源并使用其已准备好的供给。控制台先核对并复用已有的匹配工具与依赖；没有的由控制台按本产品声明下载、准备、验真并保存到控制台工具库或依赖库，再交付本产品复用。本产品负责核验交付与自身需求一致并使用资源，不因控制台缺件或供给失败改为自行下载，也不另建同一资源的永久副本；可写包管理器视图与流程过程数据仍归本产品当前任务工作目录。
+
+两种执行方式使用本产品同一声明、锁和流程实现，仅资源供给职责随执行方式改变。该职责适用于本产品全部平台与已实现流程；控制台本身作为产品同样适用。独立模式下资源缺失由产品处理；控制台模式下资源缺失由控制台处理。显式离线缺件、交付失败、损坏、错误摘要、来源漂移或越界必须据实失败，不自动升级、覆盖可疑原件或切换执行方式。
+
+以上为当前职责规范；本次只更新文档，不代表现有资源协议与运行代码已完成接入或通过真实流程验收。历史记录中的“可选供给”或“产品负责缺件获取”仅描述当时实现，不作为当前职责依据。
+
+本仓现行入口以`scripts/flows.json`及产品公开scripts实现为准；本文按日期保留的历史验收只描述当时结果，不作为当前工具、私有调用者或已撤销Publish实现的运行条件。独立塔塔门禁候选的职责和未验收状态见文末。
+
 ## 当前工作目录归属（第8步，2026-10-06）
 
-本产品全部测试、编译临时数据和产物归 `/Users/rhett/tuyufactory/target`。多平台先使用声明中的完整平台身份，再在平台内按build、ci、release、publish、test、tmp隔离。独立入口与控制台调用消费同一产品流程；控制台仅创建任务、调用与跟踪，不准备产品专用版本、依赖或步骤。下载半包、工具编译候选、工程视图、Runner步骤临时状态和测试夹具均属于当前产品工作区；永久工具与依赖原件继续归原件库。整个根target不进入Git、源码快照、程序摘要或打包输入。准确流程短锁、活跃任务保护、成功产物保护和原清理规则继续适用。
+本产品全部测试、编译临时数据和产物归 `<本仓根>/target`。多平台先使用声明中的完整平台身份，再在平台内按build、ci、release、publish、test、tmp隔离。独立入口与控制台调用消费同一产品流程；产品独立拥有需求与流程步骤；经控制台执行时，控制台按产品声明准备、保存并供给工具与依赖，同时创建任务、调用与跟踪。下载半包、工具编译候选、工程视图、Runner步骤临时状态和测试夹具均属于当前产品工作区；永久工具与依赖原件继续归原件库。整个根target不进入Git、源码快照、程序摘要或打包输入。准确流程短锁、活跃任务保护、成功产物保护和原清理规则继续适用。
 
-第8、9步完成目录与路径实现、根文档迁移及测试源码维护，未运行测试、门禁、编译或安装。本文唯一原件位于/Users/rhett/tuyufactory/TuyuFactory.md；产品接口及流程直接以本仓实际代码和声明为准，业务字典库与其检查已撤销，不另建登记副本。历史验收事实不表示本轮改造已经通过验收，统一测试在第10步进行。根技术文档由本仓门禁按原文、JSON解码值及既有补丁快照扫描机密，仅报告路径；文档迁出不减少资料安全检查。
+第8、9步完成目录与路径实现、根文档迁移及测试源码维护，未运行测试、门禁、编译或安装。本文唯一原件位于<本仓根>/TuyuFactory.md；产品接口及流程直接以本仓实际代码和声明为准，业务字典库与其检查已撤销，不另建登记副本。历史验收事实不表示本轮改造已经通过验收，统一测试在第10步进行。根技术文档由本仓门禁按原文、JSON解码值及既有补丁快照扫描机密，仅报告路径；文档迁出不减少资料安全检查。
 
 
 ## 正式软件版本
@@ -16,11 +30,11 @@
 
 ## 聊天功能的唯一产品归属
 
-**聊天客户端的逻辑功能只能在 TataChatSDK 中实现；聊天服务端的逻辑功能只能在 TataChatServer 中实现。公民、途遇及其他产品只依赖使用。**
+**聊天客户端的逻辑功能只能在 TataChatSDK 中实现；聊天服务端的逻辑功能只能在 CitizenServe.tatachat 中实现。公民、途遇及其他产品只依赖使用。**
 
 TuyuFactory 涉及聊天时只作为依赖使用方；本条不代表尚未接入聊天的产品已经具备聊天能力。
 
-- 消息、会话、群组、加密、协议、传输、同步、重试、聊天存储、附件、通话及聊天界面行为，按客户端与服务端职责分别归 TataChatSDK 和 TataChatServer；新增功能、缺陷修复和平台差异也必须在所属塔塔聊天产品内完成。
+- 消息、会话、群组、加密、协议、传输、同步、重试、聊天存储、附件、通话及聊天界面行为，按客户端与服务端职责分别归 TataChatSDK 和 CitizenServe.tatachat；新增功能、缺陷修复和平台差异也必须在所属产品内完成。
 - 消费产品只提供产品入口、身份与业务权益结果、服务地址及授权、主题和公开接口要求的平台配置；只通过公开接口接入，禁止复制、重写、包装成另一套聊天内核或维护产品专属聊天实现。CitizenServe、TuyuServe 的产品身份与权益授权不包含聊天数据面的实现职责。
 - 本机开发直接依赖仓库路径；公民、途遇等产品的正式版本依赖塔塔聊天正式 Release；第三方市场分发使用公开市场版本。依赖使用不以公开市场发布为前置条件，也不改变实现归属。
 
@@ -44,7 +58,7 @@ Node 与 Yarn 由产品 Action 自行选择并用于实际打包；任务缓存�
 
 受控移动流程合同测试按产品实际声明验证com.tuyufactory.client和Client入口，不再认定厂家尚未配置身份；签名材料和设备安装继续单独验收，身份登记通过不能代替它们。
 
-厂家分机Android工程位于`/Users/rhett/tuyufactory/app/android/`。当前产品配置统一使用Gradle9.1.0、AGP9.0.1与KGP2.2.20，并保持内置Kotlin和新DSL；根buildscript在同一依赖图声明AGP与KGP，settings不再另行解析AGP而暴露其自带KGP2.2.10。应用脚本显式导入JDK类型，Kotlin与资源源集通过AGP9公开`directories`集合登记，不再使用已弃用的`setSrcDirs`。AGP、Kotlin、Gradle与Java仍由产品工程和产品流程自行决定；控制台不要求受控Gradle版本或路径，不把工具检查作为Build门禁。com.tuyufactory.client安装身份和main_client.dart入口保持不变；真实产品编译和设备安装必须分别验收。
+厂家分机Android工程位于`<本仓根>/app/android/`。当前产品配置统一使用Gradle9.1.0、AGP9.0.1与KGP2.2.20，并保持内置Kotlin和新DSL；根buildscript在同一依赖图声明AGP与KGP，settings不再另行解析AGP而暴露其自带KGP2.2.10。应用脚本显式导入JDK类型，Kotlin与资源源集通过AGP9公开`directories`集合登记，不再使用已弃用的`setSrcDirs`。AGP、Kotlin、Gradle与Java仍由产品工程和产品流程自行决定；控制台不要求受控Gradle版本或路径，不把工具检查作为Build门禁。com.tuyufactory.client安装身份和main_client.dart入口保持不变；真实产品编译和设备安装必须分别验收。
 
 ## 厂家 Host / Client 已确认设计
 
@@ -87,7 +101,7 @@ Node 与 Yarn 由产品 Action 自行选择并用于实际打包；任务缓存�
 
 ### CitizenSDK 当前公开消费边界
 
-- 本机、CI与Release统一消费`https://github.com/crcfrcn/citizensdk.git`，根路径为`.`，准确提交为`3e53f18354e1b21c75d7e4543f2102ba8163c575`；声明与锁固定同一提交。宿主禁止`pubspec_overrides.yaml`与邻仓path依赖，工程准备器在本轮外部工作目录取得并验真Git原件，再通过SDK公开入口生成Pub消费视图。
+- 本机、CI与Release统一消费`https://github.com/crcfrcn/citizensdk.git`，根路径为`.`，准确提交为`0c442b4065ff1577e235cba76978749827d9f575`；声明与锁固定同一提交。宿主禁止`pubspec_overrides.yaml`与邻仓path依赖，工程准备器在本轮外部工作目录取得并验真Git原件，再通过SDK公开入口生成Pub消费视图。
 
 两端各自 `open()`，先订阅 `events` 再 `start()`，读取公开能力和钱包资料，正常退出等待 `stop()` 后 `close()`。Host 的 SDK 与 PostgreSQL/ERPNext 状态独立；钱包直接使用 SDK 安全 UI，不向 ERP 页面提供秘密或签名桥。
 
@@ -310,8 +324,8 @@ TuyuFactory 拥有独立源码锁、运行时、数据库、安装包和发布�
   Frappe/ERPNext 监督、统一途遇管理员和实时组件状态。
 - 应用标识：`com.tuyufactory`；用户可见中文名为“途遇厂家端”。
 - 公网和局域网业务地址只允许 HTTPS/WSS。
-- TataConsole 的“途遇厂家端”一级页固定为同一外框内上下两行，主机端在上、分机端在下，中间横线分隔。
-  两个产品各自实现四个平台Build、CI和Release；Publish与macOS Start由TataConsole按真实能力登记。
+- 外部调用方 的“途遇厂家端”一级页固定为同一外框内上下两行，主机端在上、分机端在下，中间横线分隔。
+  主机与分机保持各自现有Build、CI、Release和Start的产品声明；Publish待后续独立重建。
   页面记录仅接受这两个产品，产品、平台、Run、Tag、版本状态和发布指针均独立。
 - GitHub Runner 固定为 `macos-15`、`ubuntu-24.04-arm`、`ubuntu-24.04`、`windows-2025`，
   分别承接 macOS/iOS、LinuxARM、LinuxAMD/Android、Windows。主机端 macOS 与 Linux 工作流
@@ -323,11 +337,9 @@ TuyuFactory 拥有独立源码锁、运行时、数据库、安装包和发布�
   安装动作，而是由产品自身声明读取固定版本、官方提交及来源，按标签检出并核对准确提交。其它平台安装动作同样读取受控版本且安装后验真；工具登记、读取器与补丁进入CI缓存指纹。本机Worker固定已验真的受控Flutter/Dart。LinuxARM还须回读Dart
   可执行文件为 ARM64 后才进入构建。
 - 厂家端使用 `tuyufactory-host.<platform>.<flow>` 与 `tuyufactory-client.<platform>.<flow>`
-  规范身份；唯一实现分别位于 `tataconsole/console/tuyufactory-host/` 与
-  `tataconsole/console/tuyufactory-client/`。每个产品的四个平台各有独立 CI、Release 脚本和作业。
   受控控制器锁定同产品、同平台最近成功 CI 与正式版本，Runner 只验证该候选并全量构建；
   完整厂家仓各产品×平台×CI或Release保持一个独立顶层Workflow，只调用本仓scripts。
-- 厂家端 CI、Release 与发布只能从 `/Applications/塔塔控制台.app`（`macOS.tataconsole`）的厂家端按钮
+- 厂家端 CI、Release 与发布只能从 `外部调用方`（`调用方`）的厂家端按钮
   发起；禁止命令、网页或 API 直接派发。任一平台失败后必须先检查该 Run 的准确日志，在修复与
   本地合同验证完成前停止继续发起该平台及“全部”动作。
 
@@ -403,7 +415,7 @@ Frappe/ERPNext Python 依赖与浏览器资源；PostgreSQL 显式关闭未纳�
 
 #### 2026-08-30 macOS本机构建
 
-- TataConsole的语言缓存包含Cargo、Flutter、CocoaPods、Python、Node、PostgreSQL及包管理器状态。当前Node采用受控引用，实际版本和归档摘要随锁与构建器一同参与指纹，工具变化不会命中之前的语言缓存；尚未重跑当前版本的产品编译验收。
+- 外部调用方的语言缓存包含Cargo、Flutter、CocoaPods、Python、Node、PostgreSQL及包管理器状态。当前Node采用受控引用，实际版本和归档摘要随锁与构建器一同参与指纹，工具变化不会命中之前的语言缓存；尚未重跑当前版本的产品编译验收。
 - Frappe、ERPNext 源码及其物化业务运行时不进入缓存；每轮从仓库读取上游源码，重新安装业务依赖、生成前端资产、物化运行时并组装签名 TuyuFactory.app。
 - CI 未在本步骤调整，Release 不读取本机缓存并继续执行全量构建。
 
@@ -414,7 +426,7 @@ Frappe/ERPNext Python 依赖与浏览器资源；PostgreSQL 显式关闭未纳�
 ## Release 全量构建（第 7.4 步）
 
 正式 Release 固定从干净源码执行全量构建，显式关闭 Rust 增量编译及工具链内置缓存，不读取CI作业缓存且不复用本机编译中间物。版本、签名、校验、产物和发布流程保持原有产品合同。
-最近成功 CI 与正式版本由 TataConsole 在派发前锁定，Runner 只验证 `source_sha`、`ci_run_id`、`software_version` 与 `version_tag`；`CARGO_INCREMENTAL: "0"` 只属于实际 Release 构建 Job。
+最近成功 CI 与正式版本由 外部调用方 在派发前锁定，Runner 只验证 `source_sha`、`ci_run_id`、`software_version` 与 `version_tag`；`CARGO_INCREMENTAL: "0"` 只属于实际 Release 构建 Job。
 
 ## 双仓统一流程最终收口（第 7.5 步）
 
@@ -439,11 +451,11 @@ Frappe/ERPNext Python 依赖与浏览器资源；PostgreSQL 显式关闭未纳�
 
 ## 2026-08-30 Build与Start严格分离
 
-- 本机 Build 只读取已登记产品目录中的源码，生成产物和任务记录；禁止复制产品源码到 TataConsole 受控目录。
-- 产品Build不启动、停止或安装产品；TataConsole Start只消费同产品、同平台最近一次成功Build的准确产物。
-- 产品只实现Build、CI和Release；Start与Publish只属于TataConsole。
+- 本机 Build 只读取已登记产品目录中的源码，生成产物和任务记录；禁止复制产品源码到 外部调用方 受控目录。
+- Build按当前平台合同完成编译及适用的签名、安装、回读；Start只消费同产品、同平台已验真的准确成功产物。
+- 本产品拥有已接入Build、CI、Release和Start的完整实现；Publish待后续独立重建。
 - Start 必须核验仓库、产品、平台、源码 Git SHA、产物路径与 SHA-256；任一身份不一致即拒绝启动。
-- 受控`tatatest/target`只保存通过验证的正式成功产物及必要校验清单；一次性工作数据进入`work`，下载依赖原件进入`cache`，源码不复制。
+- 受控本产品target成功产物区只保存通过验证的正式成功产物及必要校验清单；一次性工作数据进入`work`，下载依赖原件进入`cache`，源码不复制。
 
 ## 产品平台合同冻结（TUYU 第 3.1 步，2026-09-02）
 
@@ -537,31 +549,17 @@ Android application 的 icon 与 roundIcon 统一引用 @drawable/app_icon。既
 
 ### Flutter 独立缓存工程视图（2026-09-10）
 
-厂家主机与分机共用真实 `tuyufactory/app`，但所有平台按产品身份使用各自固定缓存叶子。Flutter 工程视图由控制台公共唯一入口建立，生成状态统一进入 `build/`、`dependencies/` 与 `tmp/`；主机和分机、不同平台之间没有共享可写目录。厂家产品自己的入口、依赖和原生 SDK 决定权不变。
+厂家主机与分机共用真实 `tuyufactory/app`，但所有平台按产品身份使用各自固定缓存叶子。Flutter工程视图由本产品公开入口建立，生成状态统一进入 `build/`、`dependencies/` 与 `tmp/`；主机和分机、不同平台之间没有共享可写目录。厂家产品自己的入口、依赖和原生 SDK 决定权不变。
 
-分机 Android 的 Flutter/Pub 阶段在缓存根生成 `local.properties`、插件清单与 SDK 投影，Gradle 阶段固定从 `/Users/rhett/tuyufactory/app/android/` 真实根启动。设置与应用 Gradle 读取当前缓存 Flutter 根；项目缓存、依赖缓存和构建输出仍全部留在分机 Android 缓存，不再由跨根设置脚本链接改变 Gradle 根身份。
+分机 Android 的 Flutter/Pub 阶段在缓存根生成 `local.properties`、插件清单与 SDK 投影，Gradle 阶段固定从 `<本仓根>/app/android/` 真实根启动。设置与应用 Gradle 读取当前缓存 Flutter 根；项目缓存、依赖缓存和构建输出仍全部留在分机 Android 缓存，不再由跨根设置脚本链接改变 Gradle 根身份。
 
 Gradle 9.1需要受控 Flutter 插件 included-build 根目录可写；这里只开放该目录自身，插件文件仍只读并保持摘要验真。任务级初始化脚本把插件构建输出导向厂家分机 Android 缓存，Gradle命令关闭 Problems Report，禁止源码根生成 `android/build/`。
 ## 2026-09-11 本机生成状态清理
 
 厂家端源码不再保留 `.dart_tool`、Flutter ephemeral、`Generated.xcconfig`、`flutter_export_environment.sh`、Android/iOS/macOS PluginRegistrant、IDE 状态或插件生成清单。已删除的 iOS 环境文件包含本机绝对路径，只能由后续真实任务在本产品调用方提供的规范源码外工作目录 重新生成；产品源码及Gradle Wrapper保留；正式声明与锁统一到同一Git来源，禁止本机pubspec_overrides.yaml。
-### Build与Start物理归属（2026-09-12）
+### 产品流程物理归属
 
-本产品Build、CI和Release唯一实现位于产品scripts目录；TataConsole只按固定身份调用。Start由TataConsole启动产物库中的macOS成功产物，产品不实现Start。
-
-- tuyufactory-host：
-  - `tuyufactory.host-macos.build` → `tataconsole/console/tuyufactory/host-macos/build.sh`
-  - `tuyufactory.host-windows.build` → `tataconsole/console/tuyufactory/host-windows/build.sh`
-  - `tuyufactory.host-linux-arm.build` → `tataconsole/console/tuyufactory/host-linux-arm/build.sh`
-  - `tuyufactory.host-linux-amd.build` → `tataconsole/console/tuyufactory/host-linux-amd/build.sh`
-  - `tuyufactory.host-macos.start` → `tataconsole/console/tuyufactory/host-macos/start.sh`
-
-- tuyufactory-client：
-  - `tuyufactory.client-ios.build` → `tataconsole/console/tuyufactory/client-ios/build.sh`
-  - `tuyufactory.client-android.build` → `tataconsole/console/tuyufactory/client-android/build.sh`
-  - `tuyufactory.client-macos.build` → `tataconsole/console/tuyufactory/client-macos/build.sh`
-  - `tuyufactory.client-windows.build` → `tataconsole/console/tuyufactory/client-windows/build.sh`
-  - `tuyufactory.client-macos.start` → `tataconsole/console/tuyufactory/client-macos/start.sh`
+本仓`scripts/flows.json`声明现有产品、平台与流程身份，完整调用入口由本仓scripts拥有。Build使用产品完整execute入口；CI与Release使用本仓`scripts/flow.mjs`。已接入Start由产品声明与产品实现负责，未接入动作不由文档新增；Publish等待后续逐产品重建。外部调用者读取当前声明、创建与跟踪独立任务，不维护产品流程的第二实现。
 
 ## CI与Release入口归属
 
@@ -577,7 +575,7 @@ TuyuFactory Flutter主机与分机都直接依赖CitizenSDK并实际调用`Citiz
 
 ## 独立 GitHub CI 与 Release 工作流
 
-本产品每个实际产品、平台、流程身份使用下列独立文件，主 Job 为 `flow`；CI 验证源码，Release 生成正式产物，发布由塔塔控制台的独立 Publish 流程负责。
+本产品每个实际产品、平台、流程身份使用下列独立文件，主 Job 为 `flow`；CI 验证源码，Release 生成正式产物，本步不实现Publish，发布待后续逐产品重建。
 
 - `.github/workflows/tuyufactory-client-android-ci.yml`
 - `.github/workflows/tuyufactory-client-android-release.yml`
@@ -612,7 +610,7 @@ Android的TUYUFACTORY_BUILD_DIR由本机调用方明确指定本轮源码外输�
 
 `tuyufactory/imported/`保留既有位置、上游源码、历史定制、内部目录结构、版本和消费引用。自有代码目录整合不对这些上游系统实施迁出、删除或扁平化；上游内部单目录不计入本次自有代码整改的未完成项。
 
-原生安装件装配到本次Pub实际解析的SDK视图。`app/pubspec.yaml`与`app/pubspec.lock`统一消费CitizenSDK根包提交`3e53f18354e1b21c75d7e4543f2102ba8163c575`，离线源码只来自该已保存提交的登记Git原件。Apple框架来自同一锁定SDK的原生构建；Android双库及工作目录由本次回执提供；桌面只消费同版安装前缀。SDK Git原件、宿主声明与锁均保持只读，失败清理只处理本轮占有的目录。
+原生安装件装配到本次Pub实际解析的SDK视图。`app/pubspec.yaml`与`app/pubspec.lock`统一消费CitizenSDK根包提交`0c442b4065ff1577e235cba76978749827d9f575`，离线源码只来自该已保存提交的登记Git原件。Apple框架来自同一锁定SDK的原生构建；Android双库及工作目录由本次回执提供；桌面只消费同版安装前缀。SDK Git原件、宿主声明与锁均保持只读，失败清理只处理本轮占有的目录。
 
 
 全部八个Factory CI平台沿app/scripts/project.mjs唯一prepareNativeProject取得同一Git SDK并构建。Android回执提供本轮双库和Gradle目录；Apple框架装配到Pub实际SDK视图；Windows/Linux安装件装配到该视图的真实平台目录。CMake的--sdk-plugin回读同一Pub解析根、原SDK CMake源码及本轮安装件，禁止第二个未被Pub消费的plugin树。资源回收失败的75状态逐层传播并保留本轮现场，其它失败只清理本轮排他占有的目录。
@@ -622,13 +620,13 @@ Android的TUYUFACTORY_BUILD_DIR由本机调用方明确指定本轮源码外输�
 本产品正式Release主flow Job实际创建GitHub版本，contents权限准确为当前仓write；辅助Job与其它权限保持原登记。源提交、成功CI、版本及资产验真不放宽，不派发发布。 厂家八端Release先通过本端执行器登记RUNNER_TEMP物理根中的tuyufactory-<host|client>-<platform>-release；资产不进入源码。与源码交叠、旧.release、路径别名、错产品平台或已有资产必须拒绝。Client占有与清理保持排他创建和设备号/索引，Host构建及上传复用同一准确目录校验。Windows只验真唯一checkout取得的完整产品SHA，不再归档旧聚合子树。既有每端测试执行真实登记、占有及清理，覆盖成功、越界、错身份、已有资产与错误清理保护，不编译或读取真实发布凭据。
 ## 完整产品组织与执行合同
 
-所有者：`tuyufactory`，正式源码根 `/Users/rhett/tuyufactory`；本说明属于该完整产品。组件不会拆成独立仓库或目录产品。所有执行身份统一为 `产品.平台.流程`，单平台仅在控制台显示和物理目录中省略平台层。
+所有者：`tuyufactory`，正式源码根 `<本仓根>`；本说明属于该完整产品。组件不会拆成独立仓库或目录产品。所有执行身份统一为 `产品.平台.流程`，单平台物理目录省略平台层，执行身份仍保留真实平台。
 
 真实平台目标：`host-macos`、`host-windows`、`host-linux-arm`、`host-linux-amd`、`client-ios`、`client-android`、`client-macos`、`client-windows`。
 
-推送门禁唯一源码位于 `/Users/rhett/tuyufactory/.github/tatagate/`，GitHub入口 `/Users/rhett/tuyufactory/.github/workflows/tatagate.yml`。控制台先从本仓已保存提交执行这份门禁，通过后推送准确SHA；GitHub main push再执行同一提交的门禁，控制台核对所属仓、Workflow、main、SHA、Run和attempt，只有success并再次回查main一致才完成推送。失败、取消、超时或身份漂移均不得显示成功，不自动重试或派发CI/Release。
+推送门禁唯一源码位于 `<本仓根>/.github/tatagate/`，GitHub入口 `<本仓根>/.github/workflows/tatagate.yml`。控制台先从本仓已保存提交执行这份门禁，通过后推送准确SHA；GitHub main push再执行同一提交的门禁，控制台核对所属仓、Workflow、main、SHA、Run和attempt，只有success并再次回查main一致才完成推送。失败、取消、超时或身份漂移均不得显示成功，不自动重试或派发CI/Release。
 
-技术文档由所属完整产品仓根唯一持有；私有规则和任务库由控制台私仓持有，公开产品不读取它们。公开门禁不依赖私仓资料、安装包源码、其它本机产品或个人账号；必要链真源先锁定公开main的实际SHA后只读该SHA。本机开发跨产品验收仍比较三仓已保存快照与各端真实镜像。
+技术文档由所属完整产品仓根唯一持有；私有规则和任务库由控制台私仓持有，公开产品不读取它们。公开门禁不依赖私仓资料、安装包源码、其它本机产品或个人账号；必要链真源只读本仓明确固定的公开40位SHA，不在门禁中跟随main。本机开发跨产品验收仍比较三仓已保存快照与各端真实镜像。
 
 
 ### 门禁与开发审查职责
@@ -638,7 +636,6 @@ Android的TUYUFACTORY_BUILD_DIR由本机调用方明确指定本轮源码外输�
 
 ### 固定产物产品目录
 
-控制台预先维护固定`target/tuyufactory`产品根；平台产物仍只在真实编译和验真成功后提交。目录不保存日志、测试、临时源码、中间物或占位文件。主机与分机启动按钮仅显示文字分别为“启动主机”“启动分机”，现有动作与脚本绑定保持。
 
 ## 产品介绍与开源许可
 
@@ -664,7 +661,7 @@ macOS业务运行包禁止由Homebrew自动选件：只消费显式交付且来�
 
 ## MLS统一清理固定来源与当前验收状态
 
-CitizenSDK当前统一固定提交为3e53f18354e1b21c75d7e4543f2102ba8163c575；CitizenApp、TuyuLove、TuyuBooking/app与TuyuFactory/app的8份声明/锁已经同步，离线原件来自该真实保存提交及登记Git bundle。当前SDK公开Core为144项、Apple总导出148项、Flutter方法93项；旧用途钥API、结果和二维码响应已删除。MLS登记保持0x1C及同一32字节public_key，客户端钱包私钥之外只保留MLS协议秘密。
+CitizenSDK当前统一固定提交为0c442b4065ff1577e235cba76978749827d9f575；CitizenApp、TuyuLove、TuyuBooking/app与TuyuFactory/app的8份声明/锁已经同步，离线原件只按该真实保存提交取得和验真。当前SDK公开Core为144项、Apple总导出148项、Flutter方法93项；旧用途钥API、结果和二维码响应已删除。MLS登记保持0x1C及同一32字节public_key，客户端钱包私钥之外只保留MLS协议秘密。
 
 本轮源码、注释、测试源码与实际接口说明已经同步；此前测试记录不能证明本轮新快照通过。统一测试及已签名Release真实验收尚未完成，未推送或部署。
 
@@ -682,7 +679,7 @@ Git依赖只接受本仓声明与锁一致的HTTPS地址及40位固定提交；�
 
 本仓`scripts/resources.mjs`拥有工具准确来源/版本/配方、递归锁解析、缺失获取、验真、复用和本轮依赖准备；`scripts/build.mjs resources <platform> --work <绝对外部工作根>`调用同一实现，独立入口为`resources.mjs <platform> --work <工作根> [--offline]`。前者从stdin读取公开身份回执；后者允许空请求。最小宿主必须使用本仓声明的官方Node25.2.1绝对入口，本机配方限定macOS ARM；资源阶段回读官方发行归档与运行Node字节，不能从PATH取同名程序。工作根预先存在、位于源码外且不经过链接。
 
-可选`PRODUCT_TOOL_ROOT`只供读取工具原件，`PRODUCT_DEPENDENCY_ROOT`只供读取依赖原件；产品不读取供给者的版本决策或私有任务变量。独立缺省原件库为源码外`~/.local/share/product-resources`，本轮可写状态仅在work。GNU Bash/grep/sed纳入自身需求；发行件旧Shell仅用于声明中的首次GNU构建，不进入正式PATH。下载/源码工具编译不持全局锁，最终不可变对象提交使用短锁，取消传递到工具进程组。错误摘要、损坏、未锁来源、路径越界和显式离线缺失失败并保留可疑原件。
+现存`PRODUCT_TOOL_ROOT`与`PRODUCT_DEPENDENCY_ROOT`是工具和依赖的只读路径输入，本身不能完成控制台缺件准备与交付。当前供给职责按本文“工具与依赖的声明和供给职责”执行：经控制台运行由控制台准备、保存与供给，独立运行由产品自行处理；源码外`~/.local/share/product-resources`仅描述现存独立资源存储，本轮可写状态仅在work。GNU Bash/grep/sed纳入自身需求；发行件旧Shell仅用于声明中的首次GNU构建，不进入正式PATH。下载/源码工具编译不持全局锁，最终不可变对象提交使用短锁，取消传递到工具进程组。错误摘要、损坏、未锁来源、路径越界和显式离线缺失失败并保留可疑原件。
 
 Pub/npm/Cargo按原始锁准备；Git按固定HTTPS提交检出，Git Cargo目录源展开workspace继承并锁定相对包版本；CocoaPods按准确锁摘要恢复验真快照，缺失spec校验规范摘要，未锁源码来源拒绝取得。Android固定包与修订归产品；额外平台仅消费官方固定发行来源与发行树摘要，不借宿主历史SDK目录。Maven供给只读验真后复制到独占Gradle缓存，由产品准备现有配置，消费仍离线；全库坐标导入与旧目录清理留到第5步。
 
@@ -695,7 +692,7 @@ Pub/npm/Cargo按原始锁准备；Git按固定HTTPS提交检出，Git Cargo目�
 
 ### 第3步：产品完整Build入口（2026-10-06）
 
-本产品的正式完整入口为已锁定Node的绝对路径调用`/Users/rhett/tuyufactory/scripts/build.mjs execute <platform> --work <已存在绝对工作根>`，可选`--offline`。输入stdin可为空；调用方可传schema/product_id/platform/work及真实run_id/program_digest，禁止私有变量或执行命令。入口内部完成需求→资源→准备→再次需求/资源闭包→编译→适用签名/安装/回读；独立与控制台调用同一实现。最小引导Node只启动本产品的资源引导器，产品按自己的官方Node声明验真、准备并重入，控制台运行Node不决定产品Node版本。
+本产品的正式完整入口为已锁定Node的绝对路径调用`<本仓根>/scripts/build.mjs execute <platform> --work <已存在绝对工作根>`，可选`--offline`。输入stdin可为空；调用方可传schema/product_id/platform/work及真实run_id/program_digest，禁止私有变量或执行命令。入口内部完成需求→资源→准备→再次需求/资源闭包→编译→适用签名/安装/回读；独立与控制台调用同一实现。最小引导Node只启动本产品的资源引导器，产品按自己的官方Node声明验真、准备并重入，控制台运行Node不决定产品Node版本。
 
 标准输出只有唯一有界JSON：schema、product_id、platform、work、completion、files及可选真实run_id。completion沿用固定平台的device-install/macos-artifact/compile-only；files按本产品flows.json登记路径和SHA256。编译日志使用stderr进入现有任务日志，不新增资源任务或任务状态。完整结果只在各阶段成功、源码/锁不漂移、工具进程确认退出后落入本轮build-result.json；同根并发或复用旧结果拒绝，取消/失联/错误身份/损坏候选不得成功。
 
@@ -744,7 +741,7 @@ CI/Release的规范身份、标题、版本前缀和正式版本记录标志已�
 
 ### 产品独立资源与唯一依赖供给
 
-本产品的scripts/resources.mjs拥有资源解析、来源与摘要验证、缺件取得、可写视图和失败条件。PRODUCT_DEPENDENCY_ROOT是可选只读供给；没有供给时使用源码外的本产品原件存储，产品需求仍只由当前源码、声明和锁决定。依赖索引读取仅接受schema_version=2及packages、git_sources、pods，不恢复旧目录或整锁快照。
+本产品的scripts/resources.mjs独立拥有需求解析、准备配方、来源与摘要验证、可写视图和失败条件。独立执行时由产品获取、保存与复用缺件；经控制台执行时由控制台按产品声明准备、保存并供给，产品核验并使用。PRODUCT_DEPENDENCY_ROOT仅是现存只读路径输入，缺少路径或原件不得在控制台执行模式下触发产品自行下载；实际供给接入仍需代码改造与验收。依赖索引读取仅接受schema_version=2及packages、git_sources、pods，不恢复旧目录或整锁快照。
 
 Maven的具体JAR、AAR、POM、module及分类器文件统一由packages的group:artifact、version、准确上游URL、SHA256和SRI定位objects中的原件。产品在本轮work/dependencies/maven按上游分区复制独占文件；不复制Gradle二进制元数据、锁和下载状态。产品生成本轮GRADLE_USER_HOME/init.d初始化脚本，只在自身已声明的同源仓库之前加入本轮原件视图，缺件仍按产品原仓库解析，明确离线则失败。Gradle解析、工程状态和后续编译都属于同一产品任务。
 
@@ -789,3 +786,51 @@ Apple验真器测试由同一锁定Xcode的swiftc编译实际XCTest Bundle，使
 
 
 本产品资源验真将下载运输元数据与源码工具编译身份分开：仅在源码工具证明和本产品声明的比较副本中，验证并移除archive.mirrors与upstream_patches各项mirrors。镜像须为非空、无重复、无控制字符/空白、无账号/口令/片段的准确规范HTTPS地址数组；错误格式直接失败。官方来源URL、版本、归档字节摘要、kind/root/executable、补丁来源/摘要/顺序、前置与依赖闭包、其它位置同名字段及未知字段继续严格比较。Xcode/POSIX输入、recipe.source和source.archive/source.gem摘要、原回执清单及入口独占规则不变；比较不改写原证明、声明或回执，不改变原件/登记/配方/版本/锁和实际下载策略，不读取控制台登记作为产品版本或策略来源。既有回归使用完整本仓资源实现及纯合成物理证明，逐次重算清单，验证运输差异可复用与真正输入漂移必须失败；测试不启动工具或冒充真实编译交付。
+
+
+## 独立塔塔门禁与资料回归
+
+本仓 `.github/tatagate/index.mjs` 是本机与GitHub共用的唯一门禁实现，`contracts.json`只登记本仓准确GitHub身份、已有流程与真实Node入口。GitHub在本仓main推送时自动运行 `tatagate.yml`，检出并核对该push的同一已保存SHA；其它仓库的工作树、门禁、私有规则和人工开发凭证均不是输入。
+
+门禁检查独立Git根、准确HTTPS origin、当前受检提交及提交范围；本机只接受main，远端只接受准确仓库的main push。源码语法、真实代码注释上下文、临时残留、传输来源、所属根技术文档和受控测试登记分别检查。实现变化必须在同一范围同步所属文档与有内容的回归差异；空白调整不构成同步证据。代码与资料的语义、注释是否准确、回归是否覆盖产品功能仍须由本仓开发与最终真实验收逐项复核，非空文件或摘要不能证明业务正确。
+
+Node清单从本仓Git已跟踪的真实测试逐项核对，漏登记、重复、失效和空入口失败；执行时必须有每份登记文件与最终汇总的完整成功回执。零用例、漏文件、失败、跳过、待办、取消及重复汇总均失败。所属产品流程、声明、资源版本与Workflow权限的回归归本仓 `scripts/flow.test.mjs`，不让其它仓库代验本产品。
+
+门禁的工具与依赖需求、固定来源、准备配方、完整验真及同版复用合同统一由本仓 `scripts/resources.mjs` 拥有；门禁只调用公开接口，不维护第二份工具版本或配方。按当前职责规范，独立执行由产品获取和保存资源，经控制台执行由控制台准备和供给；下述既有接口与验收记录不代表控制台供给接入已完成。`prepareGateResources`准备本仓独占资源现场，`verifyGateResourceDelivery`回读准确来源、完整对象、执行器、宿主闭包和工作环境，`gateResourcePlan`从本仓既有声明派生来源。既有tools模块如存在仅转发产品资源接口。Linux门禁新增Ubuntu 24.04 x64宿主交付，macOS门禁复用本仓既有生产资源准备；不改生产流程顺序、工具版本、产品原锁或不可变原件。
+
+固定Git输入只从本仓声明或门禁明确的40位提交取得，不消费其它产品当前main。独立执行的依赖原件归产品独立资源库，经控制台执行的依赖原件由控制台保存供给，任务缓存和编译数据归本轮target；已有多平台产品按本仓首个登记平台的test现场分配，单平台使用target/test。`gateLanguageView`使用受检Git快照与产品现有安全解包器物化本轮target工程视图，正式源码、声明和锁只读；Git包仅在任务视图元数据中投影为已验真的固定输入。
+
+`ownedLanguageTests`按本仓已有原锁与公开入口派生适用语言调度，`validateLanguageResult`核对实际非空执行结果。有Cargo锁的工作区执行离线原锁的全部测试目标及文档测试；Flutter项目执行原有正式测试入口或完整analyze/test；已有Vitest业务套件与TypeScript公开回归实际执行。Node依赖先准备独占视图；需要实际编译产物的既有测试先调用所属产品原Build入口。依赖缺失、宿主不适用、工具加载失败或语言结果不完整均失败，不以跳过或零退出码代替通过。
+
+取消、超时及任何非成功结论都是失败，长进程通过本产品 `runResourceProcess` 传播取消并确认整组退出；退出未确认时 `gateCleanupAllowed` 拒绝清理现场。
+
+本轮只完善门禁实现、资料、注释和回归源码，尚未运行测试、门禁、编译、签名或安装。全部获准步骤实现完成后在最终统一验收中运行，随后按每仓准确保存SHA推送并核对该SHA的GitHub push门禁；未验收不得登记为已完成。
+
+
+## 独立功能门禁
+
+本仓 `.github/tatagate/` 只检查本仓提交。本产品现有功能检查主题为：工厂主机和员工权限、连接、业务运行时、原生接口与分机。已有真实入口为：native/tests、app/test、scripts/test_employee_gateway.py和test_package.mjs。`contracts.json` 的 `functions` 只映射本仓已有用例路径、实际执行器、所属工程及具名用例，不复刻业务字段或算法；源码及公开接口继续是业务真源。当前登记 40 件既有测试来源（cargo 6 件、flutter 8 件、node 25 件、python 1 件），新增或移除用例须同步映射，遗漏、失效和重复必须拒绝。
+
+Node完整报告逐文件核对；Flutter和Vitest从实际机器结果读取本仓具名套件完成数；Rust按准确原锁工作区及所属包运行全目标和文档测试，核对具名用例；Python调用实际unittest套件，拒绝零用例、失败、跳过、预期失败和意外成功。适用的原生门禁回读真实XCTest结果。执行回执绑定本仓、本次工作根和同一HEAD SHA，历史回执、加载事件、总数非空或单独零退出码均不足以证明全部功能检查成功。门禁协议夹具只证明核验器和调用边界，不能替代实际产品功能验收。
+
+门禁资源仍由本仓 `scripts/resources.mjs` 准备和验真，实际用例需要的Cargo/npm原锁纳入本仓闭包。固定SDK只按本仓声明的同一40位提交建立本轮工程，不能读取邻仓或跟随main。Linux使用现有准确Ubuntu x64门禁宿主；本机使用原macOS ARM资源入口。Flutter需要的真实MLS、SDK ABI及适用Isar宿主在用例前准备，验证普通文件、当前工作边界及实际加载；缺库即失败，不设置跳过或替身。资源与全部测试临时数据只归本产品target内准确平台现场，不改变生产平台、生产工具版本、依赖版本或锁。
+
+main推送自动触发本仓同SHA `tatagate.yml`，不调度其它产品门禁或CI/Release。中文注释、真实接口、所属文档与回归同步检查继续执行。当前只准备实现、注释和用例，未运行测试、语法检查、门禁、下载或编译。浏览器交互、真机、真实API/服务/数据库环境及适用平台不能由登记清单、单元测试或编译替代，须在整项实现后的统一验收逐项核对。
+
+本地调用的既有协调目录参数只用于核对请求身份；实际测试工作根和本次功能回执由门禁自行在本仓target建立，不向快照旁协调目录写入产品状态。独立入口与控制台固定调用共享同一实现与退出结论。
+
+
+本仓门禁回归执行边界：完整门禁包含本仓全部已登记真实测试；需要编译输入的既有用例由所属入口准备，禁止读取其它轮次生成物。嵌套Node回归启动独立运行器时，仅清除父运行器内部NODE_TEST_CONTEXT，产品工具和门禁输入继续保留；实际逐文件及最终结果仍拒绝零用例、遗漏、跳过和失败。回归夹具的Git/Shell来自已验真公开工具输入，禁止回退系统路径；工具转发模块不承担门禁CLI，直接参数拒绝由本仓实际门禁入口负责。 此次修正候选来自统一回归真实失败；整项真实功能验收、已保存提交门禁及同SHA远端结果尚未完成，不能据此登记为全部通过。
+
+功能清单核验回读本仓实际Git跟踪源码，使用明确的本仓上游排除边界；漏登记、重复、不存在的入口或Rust具名用例集合不一致均失败。归档消费者仍属于本仓功能检查，不因上游目录豁免而排除。
+
+本产品源码工具依赖准备仅返回源码外归档存储中的验真输入映射；工具候选不创建旧originals目录，也不清理不存在的目录。原始归档及编译输入仍由既有工具对象和回执完整保存，错误归档、缺前置工具、编译失败、缺输出及越界继续失败。修正后的配方形成自身对象身份，不覆盖历史原件；测试夹具遵守同一目录合同。
+
+CitizenSDK正式消费统一固定于https://github.com/crcfrcn/citizensdk.git的根包(.)及真实提交0c442b4065ff1577e235cba76978749827d9f575；声明ref、锁ref和resolved-ref必须逐字一致，不使用浮动分支或邻仓工作树。SDK Android构建输出与JNI暂存只位于当前消费产品既有target的严格子目录，SDK依赖原件只读。离线原件按该固定提交取得与验真；本次来源统一不代表新包编译、签名、安装或业务验收已经通过。
+
+
+## 本机固定执行目录
+
+target直属仅允许build、test两个固定目录，不建立平台、ci、release、publish或tmp固定目录。平台仍属于任务身份。编译器必需的内部目录只在本轮执行时存在；本轮工具全部退出、结果核验和记录完成后，成功或失败都清空对应现场。同产品共用固定编译根的任务串行领取，禁止清理其他活动任务。测试现场归test，测试结束清空。最终编译包也属于本轮现场，不保留在target根；控制台自身更新先完成既有原子安装，再清空build。远端CI、Release继续在GitHub执行，不建立本机固定流程目录。
+
+历史验收路径保留原记录；本节为当前本机目录规则。
