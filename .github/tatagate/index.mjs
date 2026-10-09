@@ -316,11 +316,12 @@ export default async function* reporter(events) {
 }
 
 // 扫描准确本仓Git已跟踪的Node测试，不接受漏登记、失效登记或重复入口。
-export function validateNodeInventory(paths, registered, repository = contract.repository) {
-  if (!Array.isArray(paths) || !Array.isArray(registered)) fail('本仓测试清单类型无效');
+export function validateNodeInventory(paths, registered, repository = contract.repository, inlinePaths = []) {
+  if (!Array.isArray(paths) || !Array.isArray(registered) || !Array.isArray(inlinePaths)) fail('本仓测试清单类型无效');
+  if(new Set(inlinePaths).size!==inlinePaths.length||inlinePaths.some(path=>!paths.includes(path)||!path.endsWith('.mjs')))fail('本仓同文件测试扫描无效');
   const owned = paths.filter(path => !path.startsWith('.github/tatagate/')
     && !ignoredPrefixesFor(repository).some(prefix => path.startsWith(prefix))
-    && /(?:^|\/)(?:test\.mjs|[^/]+[._-](?:test|spec)\.mjs)$/u.test(path)).sort();
+    && (inlinePaths.includes(path)||/(?:^|\/)(?:test\.mjs|[^/]+[._-](?:test|spec)\.mjs)$/u.test(path))).sort();
   if (!owned.length || new Set(paths).size !== paths.length
     || new Set(registered).size !== registered.length
     || owned.join('\0') !== [...registered].sort().join('\0')) fail('本仓实际测试与门禁登记不闭合');
@@ -701,7 +702,8 @@ export async function executeGate({ root, baseSHA, headSHA, work, actionlint, ca
   if (process.version !== 'v' + contract.tools.node) fail('塔塔门禁必须使用本仓登记的唯一Node版本');
   validateRepositoryIdentity(root, { remote: process.env.GITHUB_ACTIONS === 'true' });
   validateRange({ root, baseSHA, headSHA });
-  validateNodeInventory(trackedFiles(root), contract.node_tests);
+  const nodePaths=trackedFiles(root);
+  validateNodeInventory(nodePaths,contract.node_tests,contract.repository,nodePaths.filter(path=>isInlineNodeTest(path,root)));
   validateFunctionalInventory(root);
   if (!isAbsolute(work) || realpathSync(work) !== work || !lstatSync(work).isDirectory()
     || lstatSync(work).isSymbolicLink() || work === root || !work.startsWith(resolve(root,'target') + '/')
@@ -921,7 +923,7 @@ async function executeLanguageTests(root,work,receipt,env,run,languageView,signa
   }else if(plan.kind==='python'){
    const python=env.PRODUCT_PYTHON_BIN;if(!isAbsolute(python||''))fail('本仓Python功能测试缺少验真工具');
    const file=resolve(view,plan.file),pythonWork=resolve(view,'target',...(['tuyufactory','tuyubooking'].includes(contract.repository)?[process.platform==='darwin'?'host-macos':'host-linux-amd']:['cloudflare']),'test');mkdirSync(pythonWork,{recursive:true});
-   const script=['import importlib.util,json,pathlib,sys,unittest','file=pathlib.Path(sys.argv[1])','sys.path.insert(0,str(file.parent))','spec=importlib.util.spec_from_file_location("owned_function_tests",file)','module=importlib.util.module_from_spec(spec)','spec.loader.exec_module(module)','suite=unittest.defaultTestLoader.loadTestsFromModule(module)','result=unittest.TextTestRunner(verbosity=2).run(suite)','data={"tests":result.testsRun,"failures":len(result.failures),"errors":len(result.errors),"skipped":len(result.skipped),"expected_failures":len(result.expectedFailures),"unexpected_successes":len(result.unexpectedSuccesses)}','print("PRODUCT_FUNCTION_TEST_RESULT:"+json.dumps(data))','sys.exit(0 if result.wasSuccessful() and result.testsRun>0 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses else 1)'].join('\n');
+   const script=['import importlib.util,json,os,pathlib,sys,unittest','sys.dont_write_bytecode=True','file=pathlib.Path(sys.argv[1])','sys.path.insert(0,str(file.parent))','spec=importlib.util.spec_from_file_location("owned_function_tests",file)','module=importlib.util.module_from_spec(spec)','sys.modules[spec.name]=module','os.environ["PRODUCT_SCRIPT_TESTS"]="1"','spec.loader.exec_module(module)','suite=unittest.defaultTestLoader.loadTestsFromModule(module)','result=unittest.TextTestRunner(verbosity=2).run(suite)','data={"tests":result.testsRun,"failures":len(result.failures),"errors":len(result.errors),"skipped":len(result.skipped),"expected_failures":len(result.expectedFailures),"unexpected_successes":len(result.unexpectedSuccesses)}','print("PRODUCT_FUNCTION_TEST_RESULT:"+json.dumps(data))','sys.exit(0 if result.wasSuccessful() and result.testsRun>0 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses else 1)'].join('\n');
    const previous={TMPDIR:env.TMPDIR,TUYUFACTORY_TEST_DIR:env.TUYUFACTORY_TEST_DIR,PYTHONDONTWRITEBYTECODE:env.PYTHONDONTWRITEBYTECODE};Object.assign(env,{TMPDIR:pythonWork,TUYUFACTORY_TEST_DIR:pythonWork,PYTHONDONTWRITEBYTECODE:'1'});
    let result;try{result=await call(python,['-c',script,file],view,'本仓Python真实功能测试');}finally{for(const [name,value]of Object.entries(previous)){if(value===undefined)delete env[name];else env[name]=value;}}
    const rows=result.stdout.split(/\r?\n/u).filter(line=>line.startsWith('PRODUCT_FUNCTION_TEST_RESULT:'));if(rows.length!==1)fail('本仓Python功能回执不唯一');const value=JSON.parse(rows[0].slice('PRODUCT_FUNCTION_TEST_RESULT:'.length));
@@ -985,14 +987,20 @@ export function validateFunctionalContract(functions) {
 }
 
 // 源码清单与受检提交直接回读；新增测试必须进入本仓门禁，声明本身不能证明执行成功。
+function isInlineNodeTest(path,root) {
+ if(!path.endsWith('.mjs'))return false;
+ const source=lexicalParts(path,readFileSync(resolve(root,path),'utf8')).code;
+ return /\bNODE_TEST_CONTEXT\b/u.test(source)&&/\btest\s*\(/u.test(source);
+}
+
 export function validateFunctionalInventory(root,functions=contract.functions) {
   validateFunctionalContract(functions);
   const owned=trackedFiles(root).filter(path=>!path.startsWith('.github/')&&!functionalIgnoredPrefixes.some(prefix=>path.startsWith(prefix)));
   const expected=new Set();
   for(const path of owned){
-    if(/(?:^|\/)(?:test\.mjs|[^/]+[._-](?:test|spec)\.mjs)$/u.test(path)
+    if(isInlineNodeTest(path,root)||/(?:^|\/)(?:test\.mjs|[^/]+[._-](?:test|spec)\.mjs)$/u.test(path)
       ||/(?:^|\/)test\/.*_test\.dart$/u.test(path)||/[._](?:test|spec)\.tsx?$/u.test(path)
-      ||/(?:^|\/)test_[^/]+\.py$/u.test(path)||path.startsWith('app/Tests/')&&path.endsWith('.swift'))expected.add(path);
+      ||/(?:^|\/)test_[^/]+\.py$/u.test(path)||path.endsWith('.py')&&/class\s+\w+\(unittest\.TestCase\)/u.test(readFileSync(resolve(root,path),'utf8'))||path.startsWith('app/Tests/')&&path.endsWith('.swift'))expected.add(path);
     else if(path.endsWith('.rs')&&/#\[(?:test|(?:tokio|async_std)::test(?:\([^\]]*\))?|rstest)\]\s*(?:#\[[\s\S]*?\]\s*)*(?:pub\s+)?(?:async\s+)?fn\s+\w+\s*\(/u.test(lexicalParts(path,readFileSync(resolve(root,path),'utf8')).code))expected.add(path);
   }
   if(functions.length!==expected.size||functions.some(item=>!expected.has(item.path)))fail('本仓功能测试存在遗漏、失效或重复登记');

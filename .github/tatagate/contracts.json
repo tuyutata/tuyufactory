@@ -21,31 +21,31 @@
   ],
   "node_tests": [
     "app/android/contract_test.mjs",
-    "app/scripts/project.test.mjs",
+    "app/scripts/project.mjs",
     "app/windows/runner/web_test.mjs",
-    "scripts/build-local.test.mjs",
-    "scripts/build.test.mjs",
-    "scripts/client/ci/android/factory-client-android/test.mjs",
-    "scripts/client/ci/ios/factory-client-ios/test.mjs",
-    "scripts/client/ci/macos/factory-client-macos/test.mjs",
-    "scripts/client/ci/windows/factory-client-windows/test.mjs",
-    "scripts/client/release/android/factory-client-android/test.mjs",
-    "scripts/client/release/ios/factory-client-ios/test.mjs",
-    "scripts/client/release/macos/factory-client-macos/test.mjs",
-    "scripts/client/release/windows/factory-client-windows/test.mjs",
-    "scripts/dependencies.test.mjs",
-    "scripts/flow.test.mjs",
-    "scripts/host/ci/linux-amd/factory-host-linux-amd/test.mjs",
-    "scripts/host/ci/linux-arm/factory-host-linux-arm/test.mjs",
-    "scripts/host/ci/macos/factory-host-macos/test.mjs",
-    "scripts/host/ci/windows/factory-host-windows/test.mjs",
-    "scripts/host/release/linux-amd/factory-host-linux-amd/test.mjs",
-    "scripts/host/release/linux-arm/factory-host-linux-arm/test.mjs",
-    "scripts/host/release/macos/factory-host-macos/test.mjs",
-    "scripts/host/release/windows/factory-host-windows/test.mjs",
-    "scripts/resources.test.mjs",
-    "scripts/start.test.mjs",
-    "scripts/target.test.mjs"
+    "scripts/build.mjs",
+    "scripts/client/ci/android/factory-client-android/execute.mjs",
+    "scripts/client/ci/ios/factory-client-ios/execute.mjs",
+    "scripts/client/ci/macos/factory-client-macos/execute.mjs",
+    "scripts/client/ci/windows/factory-client-windows/execute.mjs",
+    "scripts/client/release/android/factory-client-android/execute.mjs",
+    "scripts/client/release/ios/factory-client-ios/execute.mjs",
+    "scripts/client/release/macos/factory-client-macos/execute.mjs",
+    "scripts/client/release/windows/factory-client-windows/execute.mjs",
+    "scripts/dependencies.mjs",
+    "scripts/flow.mjs",
+    "scripts/host/ci/linux-amd/factory-host-linux-amd/execute.mjs",
+    "scripts/host/ci/linux-arm/factory-host-linux-arm/execute.mjs",
+    "scripts/host/ci/macos/factory-host-macos/execute.mjs",
+    "scripts/host/ci/windows/factory-host-windows/execute.mjs",
+    "scripts/host/release/linux-amd/factory-host-linux-amd/execute.mjs",
+    "scripts/host/release/linux-arm/factory-host-linux-arm/execute.mjs",
+    "scripts/host/release/macos/factory-host-macos/execute.mjs",
+    "scripts/host/release/windows/factory-host-windows/execute.mjs",
+    "scripts/resources.mjs",
+    "scripts/start.mjs",
+    "scripts/target.mjs",
+    "scripts/verify.mjs"
   ],
   "checks": [
     "repository-contracts"
@@ -70,7 +70,7 @@
     },
     {
       "function": "app/scripts/project.test",
-      "path": "app/scripts/project.test.mjs",
+      "path": "app/scripts/project.mjs",
       "runner": "node",
       "target": "node"
     },
@@ -195,141 +195,147 @@
     },
     {
       "function": "scripts/build-local.test",
-      "path": "scripts/build-local.test.mjs",
-      "runner": "node",
-      "target": "node"
-    },
-    {
-      "function": "scripts/build.test",
-      "path": "scripts/build.test.mjs",
+      "path": "scripts/build.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/ci/android/factory-client-android/test",
-      "path": "scripts/client/ci/android/factory-client-android/test.mjs",
+      "path": "scripts/client/ci/android/factory-client-android/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/ci/ios/factory-client-ios/test",
-      "path": "scripts/client/ci/ios/factory-client-ios/test.mjs",
+      "path": "scripts/client/ci/ios/factory-client-ios/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/ci/macos/factory-client-macos/test",
-      "path": "scripts/client/ci/macos/factory-client-macos/test.mjs",
+      "path": "scripts/client/ci/macos/factory-client-macos/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/ci/windows/factory-client-windows/test",
-      "path": "scripts/client/ci/windows/factory-client-windows/test.mjs",
+      "path": "scripts/client/ci/windows/factory-client-windows/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/release/android/factory-client-android/test",
-      "path": "scripts/client/release/android/factory-client-android/test.mjs",
+      "path": "scripts/client/release/android/factory-client-android/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/release/ios/factory-client-ios/test",
-      "path": "scripts/client/release/ios/factory-client-ios/test.mjs",
+      "path": "scripts/client/release/ios/factory-client-ios/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/release/macos/factory-client-macos/test",
-      "path": "scripts/client/release/macos/factory-client-macos/test.mjs",
+      "path": "scripts/client/release/macos/factory-client-macos/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/client/release/windows/factory-client-windows/test",
-      "path": "scripts/client/release/windows/factory-client-windows/test.mjs",
+      "path": "scripts/client/release/windows/factory-client-windows/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/dependencies.test",
-      "path": "scripts/dependencies.test.mjs",
+      "path": "scripts/dependencies.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/flow.test",
-      "path": "scripts/flow.test.mjs",
+      "path": "scripts/flow.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/ci/linux-amd/factory-host-linux-amd/test",
-      "path": "scripts/host/ci/linux-amd/factory-host-linux-amd/test.mjs",
+      "path": "scripts/host/ci/linux-amd/factory-host-linux-amd/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/ci/linux-arm/factory-host-linux-arm/test",
-      "path": "scripts/host/ci/linux-arm/factory-host-linux-arm/test.mjs",
+      "path": "scripts/host/ci/linux-arm/factory-host-linux-arm/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/ci/macos/factory-host-macos/test",
-      "path": "scripts/host/ci/macos/factory-host-macos/test.mjs",
+      "path": "scripts/host/ci/macos/factory-host-macos/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/ci/windows/factory-host-windows/test",
-      "path": "scripts/host/ci/windows/factory-host-windows/test.mjs",
+      "path": "scripts/host/ci/windows/factory-host-windows/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/release/linux-amd/factory-host-linux-amd/test",
-      "path": "scripts/host/release/linux-amd/factory-host-linux-amd/test.mjs",
+      "path": "scripts/host/release/linux-amd/factory-host-linux-amd/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/release/linux-arm/factory-host-linux-arm/test",
-      "path": "scripts/host/release/linux-arm/factory-host-linux-arm/test.mjs",
+      "path": "scripts/host/release/linux-arm/factory-host-linux-arm/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/release/macos/factory-host-macos/test",
-      "path": "scripts/host/release/macos/factory-host-macos/test.mjs",
+      "path": "scripts/host/release/macos/factory-host-macos/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/host/release/windows/factory-host-windows/test",
-      "path": "scripts/host/release/windows/factory-host-windows/test.mjs",
+      "path": "scripts/host/release/windows/factory-host-windows/execute.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/resources.test",
-      "path": "scripts/resources.test.mjs",
+      "path": "scripts/resources.mjs",
       "runner": "node",
       "target": "node"
     },
     {
       "function": "scripts/start.test",
-      "path": "scripts/start.test.mjs",
+      "path": "scripts/start.mjs",
       "runner": "node",
       "target": "node"
     },
     {
-      "function": "scripts/test_employee_gateway",
-      "path": "scripts/test_employee_gateway.py",
+      "function": "scripts/employee_gateway",
+      "path": "scripts/employee_gateway.py",
       "runner": "python",
       "target": "unittest"
+    },
+    {
+      "function": "scripts-target",
+      "path": "scripts/target.mjs",
+      "runner": "node",
+      "target": "node"
+    },
+    {
+      "function": "scripts-verify",
+      "path": "scripts/verify.mjs",
+      "runner": "node",
+      "target": "node"
     }
   ]
 }

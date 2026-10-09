@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {withFixedWork,remoteStep,fixedWork} from '../../../../target.mjs';
 import { remoteEnvironment as productRemoteEnvironment } from '../../../../build.mjs';
-if(process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
+if(!(process.env.NODE_TEST_CONTEXT && process.argv.length === 2)&&process.env.GITHUB_ACTIONS==='true'&&String(process.env.GITHUB_WORKFLOW||'').startsWith('tuyufactory.'))Object.assign(process.env,productRemoteEnvironment());
 import { spawnSync as runExactProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -547,9 +547,53 @@ async function main() {
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '';
-if (invokedPath === import.meta.url) {
+if (!(process.env.NODE_TEST_CONTEXT && process.argv.length === 2) && invokedPath === import.meta.url) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
+}
+
+// 正式实现结束；仅直接使用 node --test 执行本文件时注册以下回归。
+if (process.env.NODE_TEST_CONTEXT && process.argv.length === 2 && !process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value)) && process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href) {
+const {default:assert} = await import('node:assert/strict');
+const { readFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, existsSync } = await import('node:fs');
+const { testRoot:tmpdir } = await import('../../../../build.mjs');
+const { join } = await import('node:path');
+const {default:test} = await import('node:test');
+
+test('tuyufactory.client-windows.ci的factory-client-windows远端Job物理独立', () => {
+  const source = readFileSync(new URL('./execute.mjs', import.meta.url), 'utf8');
+  assert.ok(source.includes('{"pipeline":"tuyufactory.client-windows.ci","job":"factory-client-windows"}'));
+  assert.match(source, /function runExactWorkflowStep\(index\)/u);
+  assert.match(source, /function requireExactRemoteJobEnvironment\(\)/u);
+});
+
+
+// 真实占有/清理只针对本次普通目录，错误归属不得删除资产。
+test('分机Release真实资产占有与清理隔离源码和其它平台', async () => {
+  const { claimRelease, cleanRelease } = await import('../index.mjs');
+  const base = mkdtempSync(join(realpathSync(tmpdir()), 'factory-client-output-'));
+  const original = process.env.RUNNER_TEMP;
+  try {
+    const source = join(base, 'source'), temporary = join(base, 'runner');
+    mkdirSync(source); mkdirSync(temporary); process.env.RUNNER_TEMP = temporary;
+    const output = join(temporary, 'tuyufactory-client-windows-release');
+    for (const wrong of [join(source, '.release/tuyufactory-client-windows'),
+      join(temporary, 'tuyufactory-host-windows-release'), output + '/..']) {
+      assert.throws(() => claimRelease(source, wrong));
+    }
+    const identity = claimRelease(source, output); writeFileSync(join(output, 'retained'), 'keep');
+    assert.throws(() => claimRelease(source, output));
+    assert.throws(() => cleanRelease(source, output, '0:0'));
+    assert.equal(readFileSync(join(output, 'retained'), 'utf8'), 'keep');
+    cleanRelease(source, output, identity); assert.equal(existsSync(output), false);
+    process.env.RUNNER_TEMP = source;
+    assert.throws(() => claimRelease(source, join(source, 'tuyufactory-client-windows-release')));
+  } finally {
+    if (original === undefined) delete process.env.RUNNER_TEMP; else process.env.RUNNER_TEMP = original;
+    rmSync(base, { recursive: true, force: false });
+  }
+});
+
 }

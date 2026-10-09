@@ -9,7 +9,6 @@ import {dirname,isAbsolute,join,parse,relative,resolve,sep} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash,randomBytes} from 'node:crypto';
 
-const {fixtureWork,removeFixture,writeFixture,copyFixture}=process.env.NODE_TEST_CONTEXT&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)?await import('./target-fixtures.mjs'):{};
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 export const contract=JSON.parse(readFileSync(join(root,'scripts/flows.json'),'utf8'));
 const product=contract.product_id, prefix=product.toUpperCase();
@@ -22,9 +21,11 @@ export function productTarget(platform) {
  platformContract(platform);
  return join(root,'target');
 }
-export function temporaryRoot(platform=Object.keys(contract.platforms)[0],scope='test') {
+export function temporaryRoot(platform=Object.keys(contract.platforms)[0],scope='test',suppliedInput) {
  if(!['test','tmp','build','ci','release','publish'].includes(scope))fail('临时目录职责无效');
- platformContract(platform);return checkFixedWork(fixedWork(scope==='test'?'test':'build'),{create:true});
+ platformContract(platform);const expected=fixedWork(scope==='test'?'test':'build');
+ if(suppliedInput!=null&&suppliedInput!==expected)fail('临时工作根必须是本产品固定目录');
+ return checkFixedWork(expected,{create:true});
 }
 // 测试继承当前平台现场；独立执行没有任务身份时才选产品首个平台。
 export const testRoot=platform=>{
@@ -952,6 +953,553 @@ async function runCommand(){
 }
 
 // CLI拒绝必须真实失败，不能留成未完成顶层await或输出成功回执。
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(!(process.env.NODE_TEST_CONTEXT && process.argv.length === 2) && process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  void runCLI().catch(error=>{console.error(error);process.exitCode=1;});
+}
+
+// 正式实现结束；仅直接使用 node --test 执行本文件时注册以下回归。
+if (process.env.NODE_TEST_CONTEXT && process.argv.length === 2 && !process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value)) && process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href) {
+const {default:assert} = await import('node:assert/strict');
+const { spawnSync } = await import('node:child_process');
+const { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } = await import('node:fs');
+const { dirname, join } = await import('node:path');
+const tmpdir = testRoot;
+const {default:test} = await import('node:test');
+
+// 真实执行本产品Build入口。夹具仅替代平台编译器和已由project.test验真的视图装配，不下载或签名。
+const product = 'tuyufactory';
+function fixture(t) {
+  const base = mkdtempSync(join(realpathSync(tmpdir()), product + '-build-'));
+  const owner = lstatSync(base);
+  t.after(() => { assert.equal(lstatSync(base).ino, owner.ino); rmSync(base, {recursive:true}); });
+  const source = join(base, product), work = join(base, 'work'), project = join(work, 'project');
+  const build = join(work, 'compiled'), tools = join(base, 'tools');
+  for (const path of [join(source, 'scripts'), project, build, tools, join(project, 'android'), join(tools, 'bin')]) mkdirSync(path, {recursive:true});
+  copyFileSync(new URL('./build-local.sh', import.meta.url), join(source, 'scripts/build-local.sh'));
+  const scripts = ['tuyulove', 'tuyulife'].includes(product) ? join(source, 'scripts') : join(source, 'app/scripts');
+  mkdirSync(scripts, {recursive:true});
+  writeFileSync(join(scripts, 'project.mjs'),
+    'if (process.env.FIXTURE_VIEW_FAIL === "yes") throw Error("view failed");\n' +
+    'export function resolveFirstPartyDependencies(){return {citizen_sdk:{root:"fixture-provider"}};}\n' +
+    'export function verifyProject(){}\n');
+  writeFileSync(join(source, 'scripts/verify.mjs'), 'if (process.env.FIXTURE_VERIFY_FAIL === "yes") throw Error("payload failed");\n');
+  const flutter = join(tools, 'bin/flutter');
+  writeFileSync(flutter, '#!' + realpathSync(process.execPath) + '\n' +
+    'const fs=require("node:fs"),p=require("node:path"),a=process.argv.slice(2);\n' +
+    'fs.appendFileSync(process.env.FIXTURE_LOG,JSON.stringify(a)+"\\n");\n' +
+    'if(a[0]==="--version"){process.stdout.write(process.env.FIXTURE_BAD_VERSION==="yes"?"{}":JSON.stringify({frameworkVersion:"3.44.2",channel:"stable",repositoryUrl:"https://github.com/flutter/flutter",frameworkRevision:"abc",engineRevision:"def",dartSdkVersion:"3.12.2"}));process.exit(0);}\n' +
+    'if(process.env.FIXTURE_COMPILE_FAIL==="yes")process.exit(19);\n' +
+    'if(a[0]==="build"&&a[1]==="ios"&&process.env.FIXTURE_MISSING_OUTPUT!=="yes"){const app=p.join(process.env.BUILD_DIR,"ios/iphoneos/Runner.app");fs.mkdirSync(p.join(app,"Frameworks/CitizenSDK.framework"),{recursive:true});fs.writeFileSync(p.join(app,"Frameworks/CitizenSDK.framework/CitizenSDK"),"compiled fixture");}\n', {mode:0o755});
+  const gradle = join(tools, 'bin/gradle');
+  writeFileSync(gradle, '#!' + realpathSync(process.execPath) + '\n' +
+    'const fs=require("node:fs"),p=require("node:path");fs.appendFileSync(process.env.FIXTURE_LOG,JSON.stringify(process.argv.slice(2))+"\\n");if(process.env.FIXTURE_COMPILE_FAIL==="yes")process.exit(19);if(process.env.FIXTURE_MISSING_OUTPUT!=="yes"){const f=p.join(process.env.BUILD_DIR,"app/outputs/flutter-apk/app-release.apk");fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"compiled apk fixture");}\n', {mode:0o755});
+  const init = join(work, 'gradle-init'); writeFileSync(init, 'fixture\n');
+  const log = join(work, 'compiler.log');
+  const environment = {...process.env, NODE:realpathSync(process.execPath), FLUTTER:flutter,
+    GRADLE:gradle, JAVA_HOME:tools, ANDROID_HOME:tools, GRADLE_INIT_SCRIPT:init, BUILD_DIR:build, FIXTURE_LOG:log};
+  for (const name of ['PYTHON', 'CODESIGN', 'NODE_OPTIONS', 'NODE_PATH']) delete environment[name];
+  const ios = product.startsWith('tuyul') ? 'ios' : 'client-ios';
+  const android = product.startsWith('tuyul') ? 'android' : 'client-android';
+  const run = (platform=ios, extra={}, args=[platform, project, work]) => {
+    if (platform === android) {
+      // Android必须调用真实组装与SDK校验入口，不能把缺脚本或缺导出误算为SDK拒绝。
+      for (const name of ['build_client.mjs', 'verify.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(source, 'scripts', name));
+      mkdirSync(join(project, '.dart_tool'), {recursive:true});
+      writeFileSync(join(project, '.dart_tool/package_config.json'), JSON.stringify({packages:[]}));
+    }
+    return spawnSync('/bin/bash', [join(source, 'scripts/build-local.sh'), ...args],
+      {env:{...environment,TUYU_PLATFORM:platform.replace(/^client-/, ''),...extra},encoding:'utf8'});
+  };
+  return {source,work,project,build,tools,flutter,log,environment,ios,android,run};
+}
+
+test('iOS实际编译无签名候选；工具失败、缺产物及验真失败均阻止收口', t => {
+  const f=fixture(t), result=f.run(); assert.equal(result.status,0,result.stderr);
+  assert.ok(readFileSync(join(f.work,'ios.app.zip')).length>0);
+  const invocations=readFileSync(f.log,'utf8').trim().split('\n').map(JSON.parse);
+  assert.deepEqual(invocations[0], ['build','ios','--release','--no-codesign', ...(product.startsWith('tuyul')?[]:['--target','lib/main_client.dart'])]);
+  for(const extra of [{FIXTURE_COMPILE_FAIL:'yes'},{FIXTURE_MISSING_OUTPUT:'yes'}, ...(product==='tuyufactory'?[{FIXTURE_VERIFY_FAIL:'yes'}]:[])]){
+    const g=fixture(t), failed=g.run(g.ios,extra); assert.notEqual(failed.status,0,failed.stderr); assert.equal(existsSync(join(g.work,'ios.app.zip')),false);
+  }
+});
+
+test('输入失败在编译前拒绝，已存在候选不得覆盖', t => {
+  for(const kind of ['platform','source-output','build-output','tool-link','tool-relative','missing-tool','view','existing']){
+    const f=fixture(t);let platform=f.ios,extra={},args;
+    if(kind==='platform')platform='invalid';
+    if(kind==='source-output')args=[platform,f.project,f.source];
+    if(kind==='build-output')extra.BUILD_DIR=join(f.project,'compiled');
+    if(kind==='tool-link'){const link=join(f.tools,'flutter-link');symlinkSync(f.flutter,link);extra.FLUTTER=link;}
+    if(kind==='tool-relative')extra.FLUTTER='./flutter';
+    if(kind==='missing-tool')extra.FLUTTER=join(f.tools,'missing');
+    if(kind==='view')extra.FIXTURE_VIEW_FAIL='yes';
+    if(kind==='existing')writeFileSync(join(f.work,'ios.app.zip'),'keep');
+    const result=f.run(platform,extra,args);assert.notEqual(result.status,0,kind);assert.equal(existsSync(f.log),false,kind);
+    if(kind==='existing')assert.equal(readFileSync(join(f.work,'ios.app.zip'),'utf8'),'keep');
+  }
+});
+
+test('Android实际Gradle接收完整版本定义，缺字段和编译失败阻止APK收口', t => {
+  const f=fixture(t), result=f.run(f.android);
+  if(product.startsWith('tuyul')){assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(join(f.work,'android.apk'),'utf8'),'compiled apk fixture');}
+  else {
+    assert.notEqual(result.status,0,'无SDK的合成APK必须由产品后置验真拒绝');
+    assert.match(result.stderr, /厂家SDK必须唯一解析/u);
+    assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|does not provide an export/u);
+    assert.equal(existsSync(join(f.work,'android.apk')), false);
+  }
+  const lines=readFileSync(f.log,'utf8').trim().split('\n').map(JSON.parse);
+  const args=lines.find(x=>x.includes('assembleRelease'));assert.ok(args);
+  const encoded=args.find(x=>x.startsWith('-Pdart-defines=')).slice('-Pdart-defines='.length);
+  assert.equal(encoded.split(',').length,6);assert.equal(Buffer.from(encoded.split(',')[0],'base64').toString(),'FLUTTER_VERSION=3.44.2');
+  for(const extra of [{FIXTURE_BAD_VERSION:'yes'}, {FIXTURE_COMPILE_FAIL:'yes'}, {FIXTURE_MISSING_OUTPUT:'yes'}]){
+    const g=fixture(t);assert.notEqual(g.run(g.android,extra).status,0);assert.equal(existsSync(join(g.work,'android.apk')),false);
+  }
+});
+
+}
+
+// 正式实现结束；仅直接使用 node --test 执行本文件时注册以下回归。
+if (process.env.NODE_TEST_CONTEXT && process.argv.length === 2 && !process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value)) && process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href) {
+
+// 产品独立入口：真实只读需求、资源身份、路径隔离与锁定归档失败关闭。
+const {test} = await import('node:test');
+const {spawnSync} = await import('node:child_process');
+const {default:assert} = await import('node:assert/strict');
+const {existsSync,lstatSync,mkdtempSync,readFileSync,readdirSync,realpathSync,rmSync,mkdirSync,symlinkSync,writeFileSync} = await import('node:fs');
+const tmpdir = testRoot;
+const {dirname,join,resolve} = await import('node:path');
+
+
+const {default:fs}=await import('node:fs');
+const {fixedWork,checkFixedWork,clearFixedWork,finishFixedWork}=await import('./target.mjs');
+// 本产品测试使用固定根；资源夹具的内部目录不成为另一套工作根。
+const scripts=import.meta.dirname;
+function fixtureWork(){const work=checkFixedWork(fixedWork('build'),{create:true});finishFixedWork(work);return work;}
+function removeFixture(path,options={}){if(path===fixedWork('build')||path===fixedWork('test')){if(fs.existsSync(path))clearFixedWork(path);return;}fs.rmSync(path,options);}
+
+function writeFixture(path,data,options){
+ fs.writeFileSync(path,data,options);
+ if(String(path).endsWith('/scripts/build.mjs')&&String(data).includes("from './target.mjs'")){
+  for(const name of ['target.mjs'])fs.copyFileSync(join(scripts,name),join(dirname(path),name));
+ }
+}
+
+function copyFixture(source,destination,...options){
+ fs.copyFileSync(source,destination,...options);
+ if(String(destination).endsWith('/scripts/build.mjs'))for(const name of ['target.mjs'])fs.copyFileSync(join(scripts,name),join(dirname(destination),name));
+}
+
+const sandbox=fixtureWork;
+const root=resolve(import.meta.dirname,'..'),base=existsSync(join(root,'app/pubspec.yaml'))?join(root,'app'):root;
+const fixture=work=>{
+ const platform=Object.keys(contract.platforms).find(value=>value.endsWith('android'))||Object.keys(contract.platforms)[0];
+ const own={};for(const value of contract.platforms[platform].locks){const key={npm:'npmCache',pub:'pubCache',cargo:'cargoHome'}[value.ecosystem];if(key){own[key]=join(work,key);mkdirSync(own[key]);}}
+ return {schema:1,product_id:contract.product_id,platform,work,offline:true,
+ tools:Object.fromEntries(contract.platforms[platform].tools.map(tool=>[tool.id,{version:tool.version,path:process.execPath}])),
+ dependencies:{own},archives:{},environment:{}};
+};
+test('每个平台从自身原始锁只读提出需求；缺失原始Pod锁按源码事实拒绝',async()=>{
+ const work=sandbox();try{for(const platform of Object.keys(contract.platforms)){
+  const before=readdirSync(work),apple=platform.endsWith('ios')?'ios':platform.endsWith('macos')?'macos':null;
+  if(apple&&existsSync(join(base,apple,'Podfile'))&&!existsSync(join(base,apple,'Podfile.lock'))){
+   await assert.rejects(async()=>requirements(platform,work),/CocoaPods原始锁缺失/);
+  }else{
+   const result=await requirements(platform,work);assert.equal(result.product_id,contract.product_id);
+   assert.equal(result.platform,platform);assert.equal(result.schema,1);
+   assert.ok(result.tools.every(value=>value.id&&value.version));
+   assert.ok(result.locks.every(value=>['cargo','pub','npm','cocoapods'].includes(value.ecosystem)));
+  }
+  assert.deepEqual(readdirSync(work),before);
+ }}finally{removeFixture(work,{recursive:true});}
+});
+test('平台、源码内工作根和链接工作根在任何写入前拒绝',async()=>{
+ const work=sandbox();try{
+  await assert.rejects(async()=>requirements('unknown',work),/平台/);
+  assert.throws(()=>checkWork(root),/本产品target/);
+  mkdirSync(join(work,'actual'));symlinkSync(join(work,'actual'),join(work,'linked'));
+  assert.throws(()=>checkWork(join(work,'linked')),/固定目录/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('资源回执隔离产品、平台、工作根，准确工具版本且禁止注入',()=>{
+ const work=sandbox();try{
+  const receipt=fixture(work),platform=receipt.platform;
+  assert.throws(()=>resourceEnvironment(platform,work,{...receipt,product_id:'another'}),/身份/);
+  assert.throws(()=>resourceEnvironment(platform,work,{...receipt,offline:false}),/身份/);
+  assert.throws(()=>resourceEnvironment(platform,work,{...receipt,tools:{}}),/工具/);
+  assert.throws(()=>resourceEnvironment(platform,work,{...receipt,environment:{NODE_OPTIONS:'--inspect'}}),/注入/);
+  const id=Object.keys(receipt.tools)[0];assert.throws(()=>resourceEnvironment(platform,work,{...receipt,tools:{...receipt.tools,[id]:{...receipt.tools[id],version:'wrong'}}}),/版本/);
+  const env=resourceEnvironment(platform,work,receipt,{HOME:'/home',TOKEN:'private',INJECTED_CONTEXT:'/private'});
+  assert.equal(env.TOKEN,undefined);assert.equal(env.INJECTED_CONTEXT,undefined);assert.equal(env.CARGO_NET_OFFLINE,'true');
+  assert.equal(env[contract.product_id.toUpperCase()+'_WORK_DIR'],work);
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('原始锁需要的依赖必须显式交付，不能使用用户默认缓存',()=>{
+ const work=sandbox();try{
+  const receipt=fixture(work),own=receipt.dependencies.own;
+  for(const key of Object.keys(own)){const missing={...own};delete missing[key];
+   assert.throws(()=>resourceEnvironment(receipt.platform,work,{...receipt,dependencies:{own:missing}}),/依赖回执/);}
+  const key=Object.keys(own)[0];if(key){
+   const linked=join(work,'linked');symlinkSync(own[key],linked);
+   assert.throws(()=>resourceEnvironment(receipt.platform,work,{...receipt,dependencies:{own:{...own,[key]:linked}}}),/依赖回执/);
+  }
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('工程复制在同轮解析包并隔离写入，内部链接重新指向副本',()=>{
+ const work=sandbox();try{
+  const source=join(work,'input'),output=join(work,'view');mkdirSync(source);
+  writeFixture(join(source,'package.json'),'{"name":"input"}');
+  writeFixture(join(source,'code.js'),'source');symlinkSync('code.js',join(source,'linked.js'));
+  mkdirSync(join(source,'node_modules'));writeFixture(join(source,'node_modules/old'),'generated');
+  createView(source,output);writeFixture(join(output,'package.json'),'{"name":"generated"}');
+  assert.equal(readFileSync(join(source,'package.json'),'utf8'),'{"name":"input"}');
+  assert.equal(realpathSync(join(output,'linked.js')),join(output,'code.js'));
+  assert.equal(existsSync(join(output,'node_modules')),false);
+  assert.throws(()=>createView(source,output),/已存在/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('工程输出的父链接和输入外部链接均拒绝，不能写入第三方目录',()=>{
+ const work=sandbox();try{
+  const source=join(work,'source'),external=join(work,'external');mkdirSync(source);mkdirSync(external);
+  writeFixture(join(source,'code'),'source');symlinkSync(external,join(work,'linked'));
+  assert.throws(()=>createView(source,join(work,'linked/view')),/链接/);assert.deepEqual(readdirSync(external),[]);
+  symlinkSync('/etc/passwd',join(source,'outside'));
+  assert.throws(()=>createView(source,join(work,'bad-view')),/越界/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('未经本产品锁声明的归档回执不能用于编译',async()=>{
+ const work=sandbox();try{
+  const receipt=fixture(work);
+  // 同一工具回执不能为归档注入增加来源；验证在任何暂存写入前结束。
+  await assert.rejects(checkArchives(receipt.platform,work,{...receipt,archives:{injected:[{name:'unknown',version:'1.0.0',url:'https://example.invalid/archive',sha256:'a'.repeat(64),path:join(work,'missing')}]}}),/产品锁/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+
+test('Gradle初始化由本产品生成，离线并将插件和Kotlin状态放入本轮',()=>{
+ const work=sandbox();try{
+  const file=prepareGradle(work),code=readFileSync(file,'utf8');
+  assert.ok(file.startsWith(work+'/work/'));assert.match(code,/startParameter.offline = true/);
+  assert.match(code,/FLUTTER_GRADLE_BUILD_DIR/);assert.match(code,/kotlin.project.persistent.dir/);
+  assert.throws(()=>prepareGradle(work),/已经存在/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+
+// 真实命令行只读自身入口；清除私有环境与工具搜索路径，不能从控制台补齐执行条件。
+test('独立命令行从自身声明输出JSON，未知平台失败且不写工作根',async()=>{
+ const work=sandbox();try{
+  for(const platform of Object.keys(contract.platforms)){
+   const before=readdirSync(work),result=spawnSync(process.execPath,[join(root,'scripts/build.mjs'),'requirements',platform,'--work',work],{env:{HOME:work,LANG:'C',LC_ALL:'C'},encoding:'utf8'});
+   const apple=platform.endsWith('ios')?'ios':platform.endsWith('macos')?'macos':null;
+   if(apple&&existsSync(join(base,apple,'Podfile'))&&!existsSync(join(base,apple,'Podfile.lock'))){assert.notEqual(result.status,0);assert.match(result.stderr,/CocoaPods原始锁缺失/);}
+   else{assert.equal(result.status,0,result.stderr);const value=JSON.parse(result.stdout);assert.equal(value.product_id,contract.product_id);assert.equal(value.platform,platform);}
+   assert.deepEqual(readdirSync(work),before);
+  }
+  const invalid=spawnSync(process.execPath,[join(root,'scripts/build.mjs'),'requirements','unknown','--work',work],{env:{HOME:work},encoding:'utf8'});
+  assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/平台/);
+ }finally{removeFixture(work,{recursive:true});}
+});
+
+// 完整入口控制边界：替身只替换耗时阶段，不调用真实编译或用户安全存储。
+test('产品独立execute完成全部自有阶段后才返回唯一结果',async()=>{
+ const work=sandbox(),platform=Object.keys(contract.platforms)[0],declared=contract.platforms[platform],calls=[];
+ try{
+  const result={schema:1,product_id:contract.product_id,platform,work,completion:declared.completion,run_id:'123456789',files:[]};
+  const stages={requirements:async()=>{calls.push('requirements');},resources:async()=>{calls.push('resources');return {};},prepare:async()=>{calls.push('prepare');},build:async()=>{
+   calls.push('build');for(const name of declared.files){const path=join(work,name);mkdirSync(dirname(path),{recursive:true});writeFixture(path,'isolated-candidate-fixture');result.files.push({path,sha256:outputDigest(path)});}return result;
+  }};
+  assert.deepEqual(await execute(platform,work,{run_id:'123456789'},{stages}),result);
+  assert.deepEqual(calls,['requirements','resources','prepare','requirements','resources','build']);
+  assert.deepEqual(readdirSync(work),[], '独立执行结束必须彻底清空现场');
+  result.files=[]; calls.length=0;
+  assert.deepEqual(await execute(platform,work,{run_id:'123456789'},{stages}),result);
+  assert.deepEqual(readdirSync(work),[], '下一轮结束仍须清空现场');
+ }finally{removeFixture(work,{recursive:true});}
+});
+test('失败、取消、并发和伪造终态不能复用工作根或留下成功回执',async()=>{
+ const platform=Object.keys(contract.platforms)[0];
+ for(const failure of ['resources','prepare','build','identity','cancel']){
+  const work=sandbox(),abort=new AbortController(),calls=[];
+  try{
+   const stages={requirements:()=>{},resources:async()=>{calls.push('resources');if(failure==='resources')throw Error('fixture failure');return {};},prepare:async()=>{calls.push('prepare');if(failure==='prepare')throw Error('fixture failure');if(failure==='cancel')abort.abort();},build:async()=>{calls.push('build');if(failure==='build')throw Error('fixture failure');return {schema:1,product_id:'forged'};}};
+   await assert.rejects(execute(platform,work,{}, {stages,signal:abort.signal}));
+   assert.equal(existsSync(join(work,'build-result.json')),false);assert.equal(existsSync(join(work,'.product-build.lock')),false);
+   if(['resources','prepare','cancel'].includes(failure))assert.equal(calls.includes('build'),false);
+  }finally{removeFixture(work,{recursive:true});}
+ }
+ const work=sandbox();try{writeFixture(join(work,'.product-build.lock'),'owned');await assert.rejects(execute(platform,work,{}));assert.equal(readFileSync(join(work,'.product-build.lock'),'utf8'),'owned');}finally{rmSync(join(work,'.product-build.lock'),{force:true});removeFixture(work,{recursive:true});}
+});
+
+test('Android多USB、包路径、证书和开发材料异常由产品拒绝',async()=>{
+
+ assert.deepEqual(androidUSBSerials('List of devices attached\nA device usb:1\nB device usb:2\nemulator-1 device transport_id:3\n'),['A','B']);
+ for(const list of ['List of devices attached\nA offline usb:1\nB device usb:2','List of devices attached\nA device usb:1\nA device usb:2','List of devices attached\nA device usb:1'])assert.throws(()=>androidUSBSerials(list));
+ assert.equal(androidInstalledPath({code:1,stdout:'',stderr:''}),null);
+ assert.equal(androidInstalledPath({code:0,stdout:'package:/data/app/abc/base.apk\n',stderr:''}),'/data/app/abc/base.apk');
+ for(const value of [{code:1,stdout:'',stderr:'device offline'},{code:0,stdout:'package:/data/app/../base.apk',stderr:''},{code:0,stdout:'package:/data/app/a/base.apk\npackage:/data/app/b/base.apk',stderr:''}])assert.throws(()=>androidInstalledPath(value));
+ const cert='a'.repeat(64);assert.equal(androidCertificate('Verified using v2 scheme (APK Signature Scheme v2): true\nSigner #1 certificate SHA-256 digest: '+cert),cert);
+ assert.throws(()=>androidCertificate('Signer #1 certificate SHA-256 digest: '+cert));assert.throws(()=>parseAndroidSigning(Buffer.from('keystore=bad\npassword=fixture').toString('base64')));
+});
+test('iOS设备、过滤包标识、bundleVersion与版本比较归产品',async()=>{
+
+ const identifier='12345678-1234-1234-1234-123456789abc',udid='12345678-123456789abcdef0',bundle='fixture.product';
+ const device={identifier,properties:{hardware:{reality:'physical',platform:'iOS',udid},connection:{pairingState:'paired'},state:{developerModeStatus:{enabled:{mode:1}}}}};
+ assert.deepEqual(iosDeviceCandidates({info:{outcome:'success'},result:{devices:[device]}}),[{identifier,udid}]);
+ assert.deepEqual(iosDeviceCandidates({info:{outcome:'success'},result:{devices:[{...device,properties:{...device.properties,hardware:{...device.properties.hardware,reality:'virtual'}}}]}}),[]);
+ const readback={info:{outcome:'success'},result:{deviceIdentifier:identifier,matchingBundleIdentifier:bundle,apps:[{bundleIdentifier:bundle,version:'1.2',bundleVersion:'3'}]}};
+ assert.deepEqual(iosInstalled(readback,identifier,bundle),{version:'1.2',build:'3'});
+ assert.throws(()=>iosInstalled(readback,'wrong-device',bundle));assert.throws(()=>iosInstalled({...readback,result:{...readback.result,apps:[{bundleIdentifier:bundle,version:'1.2',buildVersion:'3'}]}},identifier,bundle));
+ assert.deepEqual(iosVersion('1.2'),iosVersion('1.2.0'));assert.throws(()=>iosVersion('1.2-beta'));
+});
+
+// 原控制台profile/entitlement用例迁到产品Swift验真器；最终统一验收交付已验真的Xcode环境。
+const iosContractFixture=[
+ "import XCTest",
+ "final class ProductIOSContractTests: XCTestCase {",
+ "    @objc func testProductIOSReleaseSettingsRequireUniqueRunnerAndRelease() throws {",
+ "        // 工程级设置允许被唯一 Runner Release 覆盖；Debug 或其它目标不能成为签名配置来源。",
+ "        let objects: [String: [String: Any]] = [",
+ "            \"project\": [\"targets\": [\"runner\"], \"buildConfigurationList\": \"project-list\"],",
+ "            \"runner\": [\"name\": \"Runner\", \"productType\": \"com.apple.product-type.application\", \"buildConfigurationList\": \"runner-list\"],",
+ "            \"project-list\": [\"buildConfigurations\": [\"project-release\"]],",
+ "            \"runner-list\": [\"buildConfigurations\": [\"runner-debug\", \"runner-release\"]],",
+ "            \"project-release\": [\"name\": \"Release\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"PROJECT001\", \"SDKROOT\": \"iphoneos\"]],",
+ "            \"runner-release\": [\"name\": \"Release\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"RUNNER0001\", \"PRODUCT_BUNDLE_IDENTIFIER\": \"com.example.local\"]],",
+ "            \"runner-debug\": [\"name\": \"Debug\", \"buildSettings\": [\"DEVELOPMENT_TEAM\": \"DEBUG00001\"]],",
+ "        ]",
+ "        let values = try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": objects])",
+ "        XCTAssertEqual(values[\"DEVELOPMENT_TEAM\"] as? String, \"RUNNER0001\")",
+ "        XCTAssertEqual(values[\"PRODUCT_BUNDLE_IDENTIFIER\"] as? String, \"com.example.local\")",
+ "        XCTAssertEqual(values[\"SDKROOT\"] as? String, \"iphoneos\")",
+ "        var missingRunner = objects",
+ "        missingRunner[\"project\"]?[\"targets\"] = [String]()",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": missingRunner]))",
+ "        for list in [\"project-list\", \"runner-list\"] {",
+ "            var missingRelease = objects",
+ "            missingRelease[list]?[\"buildConfigurations\"] = [String]()",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": missingRelease]))",
+ "            var duplicateRelease = objects",
+ "            duplicateRelease[\"extra-release\"] = [\"name\": \"Release\", \"buildSettings\": [:] as [String: Any]]",
+ "            duplicateRelease[list]?[\"buildConfigurations\"] = [list == \"project-list\" ? \"project-release\" : \"runner-release\", \"extra-release\"]",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": duplicateRelease]))",
+ "        }",
+ "        var duplicateRunner = objects",
+ "        duplicateRunner[\"runner-two\"] = objects[\"runner\"]",
+ "        duplicateRunner[\"project\"]?[\"targets\"] = [\"runner\", \"runner-two\"]",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosReleaseSettings([\"rootObject\": \"project\", \"objects\": duplicateRunner]))",
+ "    }",
+ "",
+ "    private func localIOSProfile() -> [String: Any] {",
+ "        [\"TeamIdentifier\": [\"TEAMTEST01\"], \"ApplicationIdentifierPrefix\": [\"TEAMTEST01\"],",
+ "         \"CreationDate\": Date(timeIntervalSince1970: 1), \"ExpirationDate\": Date(timeIntervalSince1970: 1000),",
+ "         \"Platform\": [\"iOS\"], \"ProvisionedDevices\": [\"device-one\"],",
+ "         \"Entitlements\": [\"application-identifier\": \"TEAMTEST01.com.example.*\",",
+ "             \"com.apple.developer.team-identifier\": \"TEAMTEST01\", \"get-task-allow\": true,",
+ "             \"keychain-access-groups\": [\"TEAMTEST01.*\"], \"aps-environment\": \"development\"]]",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileOnlyGrantsRequestedCapabilities() throws {",
+ "        let values = try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertNil(values[\"aps-environment\"])",
+ "        XCTAssertEqual(values[\"application-identifier\"] as? String, \"TEAMTEST01.com.example.local\")",
+ "        XCTAssertEqual(values[\"get-task-allow\"] as? Bool, true)",
+ "        XCTAssertNil(values[\"keychain-access-groups\"])",
+ "        let requested: [String: Any] = [",
+ "            \"keychain-access-groups\": [\"$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)\"],",
+ "            \"aps-environment\": \"$(APS_ENVIRONMENT)\"]",
+ "        let requestedValues = try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: requested, now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertEqual(requestedValues[\"keychain-access-groups\"] as? [String], [\"TEAMTEST01.com.example.local\"])",
+ "        XCTAssertEqual(requestedValues[\"aps-environment\"] as? String, \"development\")",
+ "        var distribution = localIOSProfile()",
+ "        var distributionEntitlements = try XCTUnwrap(distribution[\"Entitlements\"] as? [String: Any])",
+ "        distributionEntitlements[\"get-task-allow\"] = false",
+ "        distribution[\"Entitlements\"] = distributionEntitlements",
+ "        let distributionValues = try ProductIOSContract.iosEntitlements(profile: distribution, team: \"TEAMTEST01\",",
+ "            bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100))",
+ "        XCTAssertEqual(distributionValues[\"get-task-allow\"] as? Bool, false)",
+ "    }",
+ "",
+ "    @objc func testProductIOSSignedEntitlementsAcceptOnlyExactSecurityFrameworkAliases() {",
+ "        let expected: [String: Any] = [\"application-identifier\": \"TEAMTEST01.com.example.local\",",
+ "            \"aps-environment\": \"development\",",
+ "            \"com.apple.developer.team-identifier\": \"TEAMTEST01\", \"get-task-allow\": false]",
+ "        var actual = expected",
+ "        actual[\"com.apple.application-identifier\"] = \"TEAMTEST01.com.example.local\"",
+ "        actual[\"com.apple.developer.aps-environment\"] = \"development\"",
+ "        XCTAssertTrue(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual[\"com.apple.application-identifier\"] = \"TEAMTEST01.com.other\"",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual = expected",
+ "        actual[\"com.apple.developer.aps-environment\"] = \"production\"",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "        actual = expected",
+ "        actual[\"unexpected-capability\"] = true",
+ "        XCTAssertFalse(ProductIOSContract.iosSignedEntitlementsMatch(actual, expected: expected))",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileRejectsWrongIdentityDeviceExpiryAndPermissions() throws {",
+ "        for (key, value) in [(\"TeamIdentifier\", [\"OTHERTEAM1\"] as Any), (\"ProvisionedDevices\", [\"other-device\"] as Any),",
+ "                             (\"ExpirationDate\", Date(timeIntervalSince1970: 99) as Any), (\"CreationDate\", Date(timeIntervalSince1970: 101) as Any),",
+ "                             (\"Platform\", [\"macOS\"] as Any)] {",
+ "            var profile = localIOSProfile()",
+ "            profile[key] = value",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(profile: profile, team: \"TEAMTEST01\",",
+ "                bundleID: \"com.example.local\", device: \"device-one\", requested: [:], now: Date(timeIntervalSince1970: 100)))",
+ "        }",
+ "        for requested: [String: Any] in [[\"get-task-allow\": true], [\"not-authorized\": true],",
+ "            [\"application-identifier\": \"TEAMTEST01.com.other.app\"], [\"application-identifier\": 7],",
+ "            [\"com.apple.developer.team-identifier\": [\"TEAMTEST01\"]], [\"keychain-access-groups\": [\"OTHERTEAM1.app\"]]] {",
+ "            XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(profile: localIOSProfile(), team: \"TEAMTEST01\",",
+ "                bundleID: \"com.example.local\", device: \"device-one\", requested: requested, now: Date(timeIntervalSince1970: 100)))",
+ "        }",
+ "    }",
+ "",
+ "    @objc func testProductIOSProfileRejectsUnknownEntitlementVariables() throws {",
+ "        XCTAssertThrowsError(try ProductIOSContract.iosEntitlements(",
+ "            profile: localIOSProfile(), team: \"TEAMTEST01\", bundleID: \"com.example.local\",",
+ "            device: \"device-one\", requested: [\"aps-environment\": \"$(UNKNOWN_ENVIRONMENT)\"],",
+ "            now: Date(timeIntervalSince1970: 100)))",
+ "    }",
+ "",
+ "}",
+].join('\n');
+test('产品Security验真器拒绝错误Release配置、profile授权和entitlement变量',async()=>{
+ const work=sandbox();
+ try{
+  const swift=process.env.PRODUCT_TEST_SWIFT,developer=process.env.PRODUCT_TEST_DEVELOPER_DIR;
+  assert.ok(swift&&developer,'统一验收须显式交付产品锁定Xcode的PRODUCT_TEST_SWIFT和PRODUCT_TEST_DEVELOPER_DIR');
+  // 官方swift入口是包内链接；核验规范目标属于同一Xcode并具执行权限。
+  const actualSwift=realpathSync(swift);assert.ok(actualSwift.startsWith(realpathSync(developer)+'/'));
+  assert.ok(swift.startsWith(developer+'/'));assert.ok(lstatSync(actualSwift).isFile()&&(lstatSync(actualSwift).mode&0o111));
+  const main=IOS_VERIFIER_SOURCE.indexOf('\ndo {\n let bytes = FileHandle.standardInput');assert.ok(main>0);
+  const source=join(work,'ios-contract.swift'),bundle=join(work,'IOSVerifierTests.xctest'),binary=join(bundle,'Contents/MacOS/IOSVerifierTests'),frameworks=join(developer,'Platforms/MacOSX.platform/Developer/Library/Frameworks');
+  mkdirSync(join(bundle,'Contents/MacOS'),{recursive:true});
+  writeFixture(join(bundle,'Contents/Info.plist'),'<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>IOSVerifierTests</string><key>CFBundleIdentifier</key><string>test.product.ios-verifier</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>');
+  writeFixture(source,IOS_VERIFIER_SOURCE.slice(0,main)+'\n'+iosContractFixture);
+  const compiler=join(developer,'Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc');
+  assert.ok(realpathSync(compiler).startsWith(realpathSync(developer)+'/'));
+  const compiled=spawnSync(compiler,['-emit-library','-module-name','IOSVerifierTests','-module-cache-path',join(work,'module-cache'),'-F',frameworks,'-I',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-L',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-Xlinker','-rpath','-Xlinker',join(developer,'Platforms/MacOSX.platform/Developer/usr/lib'),'-framework','Security','-framework','CryptoKit','-framework','XCTest','-Xlinker','-rpath','-Xlinker',frameworks,source,'-o',binary],{encoding:'utf8',env:process.env});
+  assert.equal(compiled.status,0,compiled.stderr);
+  // Apple XCTest由同一登记Xcode的正式runner加载真实测试Bundle，不能使用其它平台的XCTMain。
+  const runner=join(developer,'usr/bin/xctest');assert.ok(realpathSync(runner).startsWith(realpathSync(developer)+'/'));
+  const trusted=spawnSync('/usr/bin/codesign',['--verify','--strict','--all-architectures',runner],{encoding:'utf8',env:process.env});assert.equal(trusted.status,0,trusted.stderr);
+  const checked=spawnSync(runner,[bundle],{encoding:'utf8',env:process.env,timeout:60000});assert.equal(checked.status,0,checked.stdout+checked.stderr);
+  assert.match(checked.stdout+checked.stderr,/Executed 5 tests, with 0 failures/u);
+ }finally{removeFixture(work,{recursive:true});}
+});
+
+test('产品取消等待工具进程组退出，不提前交付结果',async()=>{
+ const work=sandbox(),abort=new AbortController();let polling,deadline;
+ try{
+  const pidFile=join(work,'descendant.pid');
+  const script="const fs=require('node:fs'),{spawn}=require('node:child_process');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});fs.writeFileSync(process.argv[1],String(child.pid));setInterval(()=>{},1000);";
+  const execution=runBuildProcess(process.execPath,['-e',script,pidFile],process.env,work,{capture:true,signal:abort.signal,timeout:5000});
+  polling=setInterval(()=>{if(existsSync(pidFile))abort.abort();},20);deadline=setTimeout(()=>abort.abort(),2000);
+  await assert.rejects(execution,/取消/);assert.ok(existsSync(pidFile));const pid=Number(readFileSync(pidFile,'utf8'));
+  assert.throws(()=>process.kill(pid,0),error=>error.code==='ESRCH');
+ }finally{clearInterval(polling);clearTimeout(deadline);removeFixture(work,{recursive:true});}
+});
+
+// 覆盖独立入口、单/多平台物理边界和源码输入排除，统一测试阶段才执行。
+test('本仓target由当前平台声明决定，外部或链接工作根不能越界',()=>{
+ for(const platform of Object.keys(contract.platforms)){
+  const expected=join(root,'target');
+  assert.equal(productTarget(platform),expected);
+ }
+ assert.throws(()=>productTarget('undeclared-platform'));
+ assert.throws(()=>checkWork(join(root,'..','foreign-work')),/target/);
+ assert.throws(()=>checkWork(join(root,'target')),/target/);
+ const work=sandbox();try{assert.equal(checkWork(work),work);assert.throws(()=>checkWork(join(work,'nested')),/固定目录/);}finally{removeFixture(work,{recursive:true,force:true});}
+});
+
+
+// 复制本产品真实入口到自有测试现场；只替换资源供给边界，反向导入和CLI子进程真实执行。
+test('CLI异步资源可反向导入唯一校验，正常参数和离线失败均准确收口',()=>{
+ const area=sandbox();
+ try{
+  const source=join(area,'source'),scripts=join(source,'scripts'),file=join(scripts,'build.mjs');
+  const platform=Object.keys(contract.platforms)[0];
+  const work=join(source,'target','build');
+  mkdirSync(scripts,{recursive:true});mkdirSync(work,{recursive:true});
+  writeFixture(file,readFileSync(join(root,'scripts/build.mjs')));
+  for(const name of ['target.mjs'])writeFixture(join(scripts,name),readFileSync(join(root,'scripts',name)));
+  writeFixture(join(scripts,'flows.json'),JSON.stringify(contract));
+  const provider=[
+   "import {writeFileSync} from 'node:fs';",
+   "import {join} from 'node:path';",
+   "const refuse = false;",
+   "export async function bootstrapNode(work,options){",
+   " const owner=await import('./build.mjs');owner.checkWork(work);",
+   " writeFileSync(join(work,'bootstrap.json'),JSON.stringify({offline:options.offline,work}));",
+   " if(refuse&&options.offline)throw Error('合成离线缺少锁定资源');",
+   " return {path:process.execPath};",
+   "}",
+   "export async function resources(platform,work,request,options){",
+   " const owner=await import('./build.mjs');owner.checkWork(work);owner.platformContract(platform);",
+   " if(refuse&&options.offline)throw Error('合成离线缺少锁定资源');",
+   " return {schema:1,product_id:owner.contract.product_id,platform,work,offline:options.offline,request};",
+   "}",
+  ].join('\n');
+  writeFixture(join(scripts,'resources.mjs'),provider);
+  const env={HOME:area,LANG:'C',PATH:''},marker=join(work,'bootstrap.json');
+  const options={cwd:source,env,input:'{}',encoding:'utf8',timeout:5000,maxBuffer:1024*1024};
+  const check=(result,status)=>{
+   assert.equal(result.error,undefined);assert.equal(result.signal,null);assert.equal(result.status,status);
+   assert.doesNotMatch(result.stderr,/unsettled top-level await/u);
+  };
+  // 普通模块导入不启动CLI；结果来自当前入口完整正文，不截取/重写其控制结构。
+  const imported=spawnSync(process.execPath,['--input-type=module','--eval',
+   "import {pathToFileURL} from 'node:url';await import(pathToFileURL("+JSON.stringify(file)+"));process.stdout.write('module-ready\\n');"],options);
+  check(imported,0);assert.equal(imported.stdout,'module-ready\n');assert.deepEqual(readdirSync(work),[]);
+  const input=JSON.stringify({schema:1,product_id:contract.product_id,platform,work});
+  for(const offline of [false,true]){
+   const result=spawnSync(process.execPath,[file,'resources',platform,'--work',work,...(offline?['--offline']:[])],{...options,input});
+   check(result,0);
+   assert.deepEqual(JSON.parse(result.stdout),{schema:1,product_id:contract.product_id,platform,work,offline,request:JSON.parse(input)});
+  }
+  // execute先真实完成反向导入和Node选择，再由原请求校验拒绝，不能以假Build成功代替。
+  const invalid=spawnSync(process.execPath,[file,'execute',platform,'--work',work,'--offline'],{...options,input:'{"schema":99}'});
+  check(invalid,1);assert.equal(invalid.stdout,'');assert.match(invalid.stderr,/公开Build请求身份或字段无效/u);
+  assert.equal(existsSync(marker),false,'失败的真实入口必须清除引导材料');
+  for(const extra of [['--offline','--offline'],['--unknown']]){
+   const result=spawnSync(process.execPath,[file,'execute',platform,'--work',work,...extra],options);
+   check(result,1);assert.equal(result.stdout,'');assert.match(result.stderr,/固定入口参数无效/u);assert.equal(existsSync(marker),false);
+  }
+  const malformed=spawnSync(process.execPath,[file,'resources',platform,'--work',work],{...options,input:'{'});
+  check(malformed,1);assert.equal(malformed.stdout,'');assert.match(malformed.stderr,/SyntaxError/u);
+  const unknown=spawnSync(process.execPath,[file,'resources','unknown','--work',work],options);
+  check(unknown,1);assert.match(unknown.stderr,/平台未声明/u);
+  writeFixture(join(scripts,'resources.mjs'),provider.replace('const refuse = false;','const refuse = true;'));
+  for(const command of ['execute','resources']){
+   const result=spawnSync(process.execPath,[file,command,platform,'--work',work,'--offline'],options);
+   check(result,1);assert.equal(result.stdout,'');assert.match(result.stderr,/合成离线缺少锁定资源/u);
+  }
+  assert.equal(existsSync(join(work,'.product-build.lock')),false);
+  assert.equal(existsSync(join(work,'build-result.json')),false);
+ }finally{rmSync(area,{recursive:true,force:true});}
+});
+
+// 完整宿主通道由调用方核验结果并收尾；独立执行仍必须立即清空。
+test('宿主完整Build在调用方消费前保留成功或失败现场，独立入口仍清空',async()=>{
+ const platform=Object.keys(contract.platforms)[0],declared=contract.platforms[platform];
+ for(const [host,failure] of [['3',false],['3',true],['4',false],[undefined,false]]){
+  const work=sandbox();try{
+   let result;
+   const stages={requirements:()=>{},resources:async()=>({}),prepare:async()=>{writeFixture(join(work,'partial'),'本轮现场');if(failure)throw Error('宿主失败夹具');},build:async()=>{
+    result={schema:1,product_id:contract.product_id,platform,work,completion:declared.completion,run_id:'123456789',files:declared.files.map(name=>{const path=join(work,name);mkdirSync(dirname(path),{recursive:true});writeFixture(path,'当前产物');return {path,sha256:outputDigest(path)};})};return result;
+   }};
+   const pending=execute(platform,work,{run_id:'123456789'},{stages,environment:host?{PRODUCT_HOST_FD:host}:{}});
+   if(failure)await assert.rejects(pending,/宿主失败夹具/);else assert.deepEqual(await pending,result);
+   assert.equal(existsSync(join(work,'.product-build.lock')),false);
+   if(host==='3'){
+    assert.equal(existsSync(join(work,'partial')),true);
+    if(!failure){assert.equal(existsSync(join(work,'build-result.json')),true);for(const file of result.files)assert.equal(outputDigest(file.path),file.sha256);}
+    clearWork(work);
+   }
+   assert.deepEqual(readdirSync(work),[]);
+  }finally{removeFixture(work,{recursive:true,force:true});}
+ }
+});
+
 }
