@@ -9,12 +9,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 
 
-// 第一方依赖只来自宿主声明和锁中的准确公开Git提交；不读取邻仓、不接受override。
-// Git检出和标准Flutter消费视图均属于本次工作根，宿主源码声明和锁保持原字节。
+// 本机工程消费同级CitizenSDK仓库；自动化工程才按声明与锁检出准确Git提交。
+// 两种模式都只在本轮工作根改写Flutter消费视图，宿主原始声明与锁保持原字节。
 const firstPartyRepositories = Object.freeze({
   citizen_sdk: 'https://github.com/crcfrcn/citizensdk.git',
   tatachat_sdk: 'https://github.com/tuyutata/tatachatsdk.git',
 });
+const productRoot=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
+const localSdkMode=()=>process.env.PRODUCT_SDK_SOURCE_MODE!=='git'&&process.env.GITHUB_ACTIONS!=='true';
+function localSdkRoot(){const path=join(dirname(productRoot),'citizensdk'),manifest=join(path,'pubspec.yaml'),entry=join(path,'scripts/build.mjs');
+ if(realpathSync(path)!==path||!lstatSync(path).isDirectory()||realpathSync(manifest)!==manifest
+  ||!lstatSync(manifest).isFile()||realpathSync(entry)!==entry||!lstatSync(entry).isFile()
+  ||!/^name: citizen_sdk\r?$/mu.test(readFileSync(manifest,'utf8')))fail('本地CitizenSDK仓库身份无效');return path;}
 function dependencyBlock(text, name) {
   const matches = [...text.matchAll(new RegExp('^  ' + name + ':\\n(?:[ \\t]{4,}[^\\n]*\\n)+', 'gm'))];
   if (matches.length !== 1) fail('第一方依赖块不唯一：' + name);
@@ -58,11 +64,16 @@ function verifyGitDirectory(root) {
 }
 export function resolveFirstPartyDependencies(source, work) {
   verifyGitDirectory(source); verifyGitDirectory(work);
-  if (existsSync(join(source, 'pubspec_overrides.yaml'))) fail('第一方依赖禁止override');
+  if (existsSync(join(source, 'pubspec_overrides.yaml')) && !(localSdkMode()&&source===join(productRoot,'app')))
+    fail('自动化第一方依赖禁止override');
   const manifest = readFileSync(join(source, 'pubspec.yaml'), 'utf8');
   if (/^    path:/mu.test(manifest)) fail('宿主直接依赖禁止源码外path来源');
   const lock = readFileSync(join(source, 'pubspec.lock'), 'utf8');
   const result = {};
+  if(localSdkMode()&&source===join(productRoot,'app')){
+    if(!/^  citizen_sdk:$/mu.test(manifest))fail('本机编译缺少CitizenSDK直接依赖');
+    const sdk=localSdkRoot();return {citizen_sdk:{root:sdk,sha:sourceGit(sdk,['rev-parse','HEAD']),local:true}};
+  }
   for (const [name, url] of Object.entries(firstPartyRepositories)) {
     if (!new RegExp('^  ' + name + ':$', 'm').test(manifest)) continue;
     const declared = dependencyBlock(manifest, name), locked = dependencyBlock(lock, name);
@@ -251,9 +262,10 @@ function parameters({ source, work, output, platform = process.env.TUYU_PLATFORM
 
 function sourceFiles(root) {
   const files = [];
+  const ignoreLocalOverride=localSdkMode()&&root===join(productRoot,'app');
   const walk = (base) => {
     for (const e of readdirSync(base, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (generated.has(e.name) || generatedFiles.has(e.name)) continue;
+      if (generated.has(e.name) || generatedFiles.has(e.name) || ignoreLocalOverride&&base===root&&e.name==='pubspec_overrides.yaml') continue;
       const input = join(base, e.name);
       if (e.isSymbolicLink()) fail('来源包含未登记链接：' + relative(root, input));
       if (e.isDirectory()) walk(input);
@@ -312,7 +324,7 @@ export async function createProject(options, environment = process.env) {
     const dependencies = resolveFirstPartyDependencies(p.source, p.work), views = {};
     for (const [name, item] of Object.entries(dependencies)) {
       const target = join(p.output, '.source-packages', name);
-      const api = await import(pathToFileURL(join(item.root, 'scripts/release.mjs')).href);
+      const api = await import(pathToFileURL(join(item.root, 'scripts',item.local?'build.mjs':'release.mjs')).href);
       if (typeof api.createFlutterSourceView !== 'function') fail('SDK缺少公开Flutter布局入口');
       mkdirSync(dirname(target), { recursive: true });
       await api.createFlutterSourceView(item.root, target);
@@ -360,8 +372,8 @@ export async function prepareNativeProject(options, environment = process.env) {
   verifyProject(p);
   const dependency = resolveFirstPartyDependencies(p.source, p.work).citizen_sdk;
   const sdk = dependency.root, view = join(p.output, '.source-packages/citizen_sdk');
-  const api = await import(pathToFileURL(join(sdk, 'scripts/release.mjs')).href);
-  api.assertFlutterSourceView(sdk, view);
+  const api = await import(pathToFileURL(join(sdk, 'scripts',dependency.local?'build.mjs':'release.mjs')).href);
+  await api.assertFlutterSourceView(sdk, view);
   const stage = join(p.work, 'sdk-native');
   if (lstatSync(stage, { throwIfNoEntry: false })) fail('SDK原生工作目录已存在');
   mkdirSync(stage);
@@ -378,13 +390,16 @@ export async function prepareNativeProject(options, environment = process.env) {
     CITIZENSDK_VERSION: '1.0.0', CITIZENSDK_FLUTTER_ROOT: environment.FLUTTER_ROOT,
     CITIZENSDK_GRADLE: p.platform === 'android' ? (environment.CITIZENSDK_GRADLE || join(p.output, 'android/gradlew')) : environment.CITIZENSDK_GRADLE };
   if (child.CITIZENSDK_DEPENDENCY_RECEIPT) fail('SDK依赖收据必须由本轮生成');
-  const dependencyScript = join(sdk, 'scripts/dependencies.mjs');
+  const dependencyScript = join(sdk, 'scripts',dependency.local?'build.mjs':'dependencies.mjs');
   const run = (file, args) => execFileSync(file, args, {
     env: child, stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8', maxBuffer: 1024 * 1024 });
   try {
+    const plan=dependency.local?JSON.parse(run(process.execPath,[dependencyScript,'plan','--platform',dependencyPlatform])):null;
+    const zxing=plan?.archives?.find(value=>value.name==='zxing-cpp');
+    if(dependency.local&&!zxing?.archive_root)fail('本地SDK缺少公开ZXing依赖计划');
     run(process.execPath, [dependencyScript, 'prepare-environment', '--scope', 'citizensdk',
       '--platform', dependencyPlatform, '--work', sources]);
-    child.CITIZENSDK_ZXING_SOURCE_DIR = join(sources, 'zxing-cpp-3.1.1');
+    child.CITIZENSDK_ZXING_SOURCE_DIR = join(sources, zxing?.archive_root||'zxing-cpp-3.1.1');
     if (['windows', 'linux-arm', 'linux-amd'].includes(p.platform)) {
       const prepared = JSON.parse(run(process.execPath, [dependencyScript, 'prepare-native',
         '--scope', 'citizensdk', '--platform', dependencyPlatform, '--work', join(stage, 'dependencies'),
@@ -399,7 +414,8 @@ export async function prepareNativeProject(options, environment = process.env) {
         child[key] = execFileSync('cygpath', ['-u', child[key]], { encoding: 'utf8' }).trim();
       }
     }
-    execFileSync('bash', [join(sdk, 'scripts/build-native.sh'), target], { env: child, stdio: ['ignore', 2, 2] });
+    if(dependency.local)execFileSync(process.execPath,[join(sdk,'scripts/build.mjs'),'native',target],{env:child,stdio:['ignore',2,2]});
+    else execFileSync('bash', [join(sdk, 'scripts/build-native.sh'), target], { env: child, stdio: ['ignore', 2, 2] });
     const result = {};
     if (p.platform === 'ios' || p.platform === 'macos') {
       const framework = join(nativeOutput, 'apple/CitizenSDK.xcframework');
@@ -470,8 +486,8 @@ const {default:assert} = await import('node:assert/strict');
 const { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
   rmSync, symlinkSync, writeFileSync } = await import('node:fs');
 const { dirname, join } = await import('node:path');
-const { testRoot:tmpdir } = await import('../../scripts/build.mjs');
 const {default:test} = await import('node:test');
+const tmpdir=()=>{const path=join(productRoot,'target/test');mkdirSync(path,{recursive:true});return realpathSync(path);};
 
 
 // 使用源码外最小夹具验证路径与归属；不运行Flutter、不下载工具、不接触真实账户。

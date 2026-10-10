@@ -95,16 +95,14 @@ void main() {
     }
   });
 
-  test('macOS使用标准插件并由产品构建入口传入SDK框架', () {
+  test('macOS使用标准插件与产品锁定SDK声明', () {
     final podfile = File('macos/Podfile').readAsStringSync();
     final contract = File('sdk-dependencies.json').readAsStringSync();
-    final preparer = File('../scripts/sdk-dependencies.mjs').readAsStringSync();
     expect(podfile, contains('flutter_install_all_macos_pods'));
     expect(podfile, isNot(contains('File.symlink')));
     expect(contract, contains('"local"'));
     expect(contract, contains('"git"'));
     expect(contract, contains('"public"'));
-    expect(preparer, contains("command !== 'prepare'"));
   });
 }
 

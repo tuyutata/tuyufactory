@@ -34,16 +34,13 @@ fn manufacturer_sources_are_independent_from_booking_sources() {
 }
 
 #[test]
-fn linux_platforms_share_one_strict_runtime_builder() {
-    let scripts = project_root().join("scripts");
-    let implementation = fs::read_to_string(scripts.join("build_linux.sh")).unwrap();
+fn linux_platforms_own_strict_automation_builders() {
+    let workflows = project_root().join(".github/workflows");
     for platform in ["linux-arm", "linux-amd"] {
-        let entry = fs::read_to_string(scripts.join(platform).join("build.sh")).unwrap();
-        assert!(entry.contains(&format!("build_linux.sh\" {platform} \"$@\"")));
-        assert!(!entry.contains("make install"), "平台入口不得复制运行件构建实现");
-        assert!(scripts.join(platform).join("package.json").is_file());
+        let entry = fs::read_to_string(workflows.join(format!("release-host-{platform}.mjs"))).unwrap();
+        assert!(entry.contains("TUYUFACTORY_PLATFORM"));
+        assert!(entry.contains("host-materialize"));
+        assert!(!entry.contains("scripts/build.mjs"));
+        assert!(project_root().join("native").join(format!("{platform}.package.json")).is_file());
     }
-    assert!(implementation.contains("TUYUFACTORY_PLATFORM"));
-    assert!(implementation.contains("--elf-tree"));
-    assert!(!implementation.contains("Machine:.*AArch64"));
 }

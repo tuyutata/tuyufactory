@@ -20,7 +20,7 @@ use crate::process::{ProcessStatus, SiteProcess};
 
 const DATABASE_PORT: u16 = 59432;
 const HTTPS_PORT: u16 = 59443;
-const SCHEMA: &str = include_str!("../../scripts/schema.sql");
+const SCHEMA: &str = include_str!("../../native/schema.sql");
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

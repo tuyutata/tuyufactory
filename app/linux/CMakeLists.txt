@@ -83,7 +83,8 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 # Flutter刷新生成链接后、加载插件前，固定本任务同源SDK安装投影；不改SDK或Dart解析源。
 find_program(TUYUFACTORY_NODE node REQUIRED)
-execute_process(COMMAND "${TUYUFACTORY_NODE}" "$ENV{TUYUFACTORY_ROOT}/scripts/verify.mjs"
+execute_process(COMMAND "${TUYUFACTORY_NODE}" "$ENV{TUYUFACTORY_ROOT}/scripts/build.mjs"
+  verify
   --sdk-plugin "${CMAKE_CURRENT_SOURCE_DIR}/.." "$ENV{TUYU_PLATFORM}" host
   OUTPUT_VARIABLE TUYUFACTORY_SDK_PLUGIN RESULT_VARIABLE TUYUFACTORY_SDK_RESULT)
 if(NOT TUYUFACTORY_SDK_RESULT EQUAL 0)

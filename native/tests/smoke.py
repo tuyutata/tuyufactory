@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""验证厂家端打包脚本的参数、私有文件与进程故障边界。"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS = ROOT / "scripts"
+NATIVE = ROOT / "native"
+
+
+def workflow_action(platform: str, action: str) -> str:
+    source = (ROOT / ".github" / "workflows" / f"release-host-{platform}.mjs").read_text()
+    prefix = "const actions = Object.freeze("
+    start = source.index(prefix) + len(prefix)
+    end = source.index(");\nconst shaPattern", start)
+    return json.loads(source[start:end])[action]["source"]
+# 测试临时数据归产品当前工作现场；没有注入现场时使用宿主平台test。
+_product_root = ROOT
+_test_platform = "host-macos" if sys.platform == "darwin" else "host-windows" if sys.platform == "win32" else "host-linux-arm" if os.uname().machine in ("aarch64", "arm64") else "host-linux-amd"
+_test_target = _product_root / "target"
+_supplied_temp = Path(os.environ.get("TMPDIR", str(_test_target / _test_platform / "test")))
+_test_temp = _supplied_temp if _test_target in _supplied_temp.parents else _test_target / _test_platform / "test"
+for _ancestor in reversed((_test_temp, *_test_temp.parents)):
+    if _ancestor.is_symlink() or (_ancestor.exists() and not _ancestor.is_dir()):
+        raise ValueError("测试目录禁止链接或非目录")
+    _ancestor.mkdir(exist_ok=True)
+tempfile.tempdir = str(_test_temp)
+
+sys.path.insert(0, str(NATIVE))
+
+from runtime_common import read_config, write_private_json
+
+
+class RuntimeHelpersTest(unittest.TestCase):
+    def node_contract(self, script: str) -> None:
+        # 直接执行生产验证函数；ELF负向字节只在内存中，不伪造已编译运行件。
+        result = subprocess.run(
+            [os.environ.get("TUYUFACTORY_TEST_NODE", "node"), "--experimental-vm-modules", "--input-type=module", "-"],
+            input="import assert from 'node:assert/strict';\n"
+                  "import {linuxTarget, verifyElf, verifyLink} from './build.mjs';\n" + script,
+            cwd=SCRIPTS, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_linux_target_is_exact_and_never_accepts_other_host(self) -> None:
+        self.node_contract("""
+for (const [target, arch, machine] of [['linux-arm','arm64',183],['linux-amd','x64',62]]) {
+  assert.equal(linuxTarget(target, 'linux', arch).machine, machine);
+  for (const host of ['darwin','win32','freebsd']) assert.throws(() => linuxTarget(target,host,arch));
+  for (const wrong of ['ia32', 'riscv64', arch === 'x64' ? 'arm64' : 'x64']) {
+    assert.throws(() => linuxTarget(target,'linux',wrong));
+  }
+}
+for (const value of [undefined, '', 'linux-arm64', 'LinuxAMD', '__proto__', 'toString']) {
+  assert.throws(() => linuxTarget(value,'linux','x64'));
+}
+""")
+
+    def test_linux_elf_normal_wrong_and_truncated_headers(self) -> None:
+        self.node_contract("""
+for (const [target, machine] of [['linux-arm',183],['linux-amd',62]]) {
+  const header=Buffer.alloc(64);
+  header.writeUInt32BE(0x7f454c46); header[4]=2; header[5]=1; header[6]=1;
+  header.writeUInt16LE(3,16); header.writeUInt16LE(machine,18);
+  header.writeUInt32LE(1,20); header.writeUInt16LE(64,52);
+  assert.doesNotThrow(() => verifyElf(header,target,'library.so'));
+  assert.throws(() => verifyElf(header,target === 'linux-arm' ? 'linux-amd' : 'linux-arm','wrong.so'));
+  for (const length of [0,3,4,20,63]) assert.throws(() => verifyElf(header.subarray(0,length),target,'short'));
+  for (const [offset,value] of [[0,0],[4,1],[5,2],[6,0],[16,0],[18,0],[20,0],[52,0]]) {
+    const wrong=Buffer.from(header); wrong[offset]=value;
+    assert.throws(() => verifyElf(wrong,target,'invalid'));
+  }
+  assert.throws(() => verifyElf(header,'linux-arm64','unregistered'));
+}
+""")
+
+    def test_runtime_links_reject_lexical_and_resolved_escape(self) -> None:
+        self.node_contract("""
+assert.doesNotThrow(() => verifyLink('/bundle','/bundle/bin/python','../lib/python','/bundle/lib/python'));
+for (const [target, resolved] of [
+  ['/bundle/lib/python','/bundle/lib/python'], ['../../outside','/outside'],
+  ['../lib/python','/other/python'], ['../lib/python','/bundle-other/python']
+]) assert.throws(() => verifyLink('/bundle','/bundle/bin/python',target,resolved));
+""")
+
+    def test_linux_entries_consume_one_builder_and_real_metadata(self) -> None:
+        for platform, cpu, package in [("linux-arm", "aarch64", "arm64"), ("linux-amd", "x86_64", "amd64")]:
+            metadata = json.loads((NATIVE / f"{platform}.package.json").read_text())
+            self.assertEqual(metadata["platform"], platform)
+            self.assertEqual(metadata["cpuArchitecture"], cpu)
+            self.assertEqual(metadata["packageArchitecture"], package)
+            entry = workflow_action(platform, "package")
+            self.assertIn(f"'action', 'runtime', runtime", entry)
+            self.assertNotIn("scripts/build.mjs", entry)
+        builder = workflow_action("linux-amd", "runtime")
+        self.assertIn("platform + '.package.json'", builder)
+        self.assertIn('[[ "$(uname -m)" == "$CPU" ]]', builder)
+        self.assertIn('LOADER=ld-linux-', builder)
+        self.assertNotIn("Machine:.*AArch64", builder)
+
+    def test_linux_bad_arguments_fail_before_work_creation(self) -> None:
+        builder = workflow_action("linux-amd", "runtime")
+        result = subprocess.run(
+            ["bash", "-c", builder, "runtime", "linux-client", "/invalid-output"],
+            env={**os.environ, "GITHUB_WORKSPACE": str(ROOT), "RUNNER_TEMP": str(_test_temp)},
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("目标未登记", result.stderr)
+        for platform in ("linux-arm", "linux-amd"):
+            result = subprocess.run(["bash", "-c", workflow_action(platform, "runtime"), "runtime"],
+                                    env={**os.environ, "GITHUB_WORKSPACE": str(ROOT), "RUNNER_TEMP": str(_test_temp)},
+                                    capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("usage:", result.stderr)
+
+    def test_linux_cleanup_and_materialization_are_fail_closed(self) -> None:
+        builder = workflow_action("linux-amd", "runtime")
+        self.assertLess(builder.index("NODE_WORK\n"), builder.index('mkdir -p "$WORK_ROOT"'))
+        for token in ['BUILD_OWNED=0', 'SOURCES_OWNED=0', 'mkdir "$BUILD"', 'mkdir "$SOURCES"',
+                      'realpathSync(part) !== part', 'destination.startsWith(work',
+                      "existsSync(path)", 'tuyufactory/host/$PLATFORM']:
+            self.assertIn(token, builder)
+        self.assertNotIn('find "$WORK_ROOT"', builder)
+        source = (SCRIPTS / "build.mjs").read_text()
+        self.assertLess(source.index("linuxTarget(platform)"), source.index("const business ="))
+        self.assertLess(source.index("verifyBinary(file, platform)"), source.index("execFileSync(python"))
+
+    def test_private_json_is_atomic_and_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "private.json"
+            write_private_json(path, {"ready": True})
+            self.assertEqual(read_config(path), {"ready": True})
+            if os.name != "nt":
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_node_and_yarn_are_owned_by_the_product_lock(self) -> None:
+        lock = json.loads((NATIVE / "runtime.lock.json").read_text())
+        self.assertEqual(lock["node"]["version"], "25.2.1")
+        self.assertEqual(set(lock["node"]["archives"]), {"macos", "linux-arm", "linux-amd", "windows"})
+        self.assertEqual(lock["yarn"]["version"], "1.22.22")
+        for value in [*lock["node"]["archives"].values(), lock["yarn"]]:
+            self.assertTrue(value["url"].startswith("https://"))
+            self.assertRegex(value["sha256"], r"^[0-9a-f]{64}$")
+
+    def test_product_dependency_preparers_do_not_read_external_flow_roots(self) -> None:
+        sources = [(SCRIPTS / "build.mjs").read_text(),
+                   workflow_action("linux-amd", "runtime"),
+                   workflow_action("macos", "runtime"),
+                   workflow_action("windows", "package")]
+        for content in sources:
+            self.assertNotIn("flows/dependencies.mjs", content)
+        self.assertIn("fetch_locked", workflow_action("macos", "runtime"))
+        self.assertIn("fetch_locked", workflow_action("linux-amd", "runtime"))
+
+    def test_runtime_rejects_missing_arguments(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(NATIVE / "factory_runtime.py")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--config", result.stderr)
+
+    def test_runtime_lock_has_only_factory_apps(self) -> None:
+        value = json.loads((NATIVE / "runtime.lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(value["required_apps"], ["frappe", "erpnext"])
+        self.assertFalse(value["network_install_allowed"])
+        self.assertEqual(value["postgresql"], "17.11")
+        self.assertEqual(value["platforms"], ["macos", "linux-arm", "linux-amd", "windows-x86-64"])
+        for source in value["sources"].values():
+            self.assertTrue(source["url"].startswith("https://"))
+            self.assertRegex(source["sha256"], r"^[0-9a-f]{64}$")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -106,9 +106,9 @@ fn materialized_runtime_initializes_account_and_restarts() {
             "x86_64" => "linux-amd",
             _ => panic!("厂家Linux运行验收不支持当前CPU"),
         };
-        let verify = Path::new(env!("CARGO_MANIFEST_DIR")).join("../scripts/verify.mjs");
+        let verify = Path::new(env!("CARGO_MANIFEST_DIR")).join("../scripts/build.mjs");
         let result = Command::new(Path::new(&runtime_root).join("business/node/bin/node"))
-            .arg(verify).arg(&runtime_root).arg(platform).status()
+            .arg(verify).arg("verify").arg(&runtime_root).arg(platform).status()
             .expect("Linux运行验收必须能够执行运行包验证器");
         assert!(result.success(), "厂家Linux运行包架构及依赖验证失败");
     }
