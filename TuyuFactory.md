@@ -684,3 +684,9 @@ macOS运行时、资源和分机组装组件的本机正文归scripts/build.mjs�
 本仓 GitHub 门禁接受 actions/checkout 的准确 HTTPS origin（同一仓库地址有或没有 `.git` 后缀），仓库、事件、提交和工作流身份仍逐项校验。
 
 门禁清理接口只对 URL 的路径部分拒绝越界，允许 created 查询中的时间范围分隔符；同文件回归直接执行正式 HTTP 参数校验，覆盖时间范围和越界拒绝。
+
+## 配置需求公开接口
+
+本仓 `scripts/config.mjs` 声明厂家端 Android 的 APP_KEY、iOS 的 IOS_KEY 和 APP_PROFILE，均为本产品独立保密签名材料；旧控制台通用 Cloudflare 账户、数据库、桶与 R2 名称没有本仓现行消费者。两条分机 Workflow 只构建并交付带准确Run/SHA摘要的未签名候选，不读取 Repository Secrets，也不在 GitHub 签名或创建正式Release。本仓 `scripts/publish.mjs` 验真候选、按声明接收控制台瞬时交付的签名材料，在本机运行本仓唯一签名脚本、回读包身份并逐件上传正式资产；历史同类Run/Artifact在最终发布成功后由本仓接口清理。实际签名、发布和密钥迁移尚未执行。
+
+厂家分机 CI 的 `build-release` 动作实际调用本仓 `buildCandidate` 生成未签名 APK/AAB 或 iOS App，Android 的 `claim-release` 认领本轮临时目标；未知动作直接失败。本机签名后的 APK、AAB 与 iOS App 通过本仓包验证接口核对，不依赖只存在于 CI 构建现场的 SDK 工程收据。上述接口已写入源码，尚待所属产品测试验证。

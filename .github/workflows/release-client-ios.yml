@@ -104,26 +104,10 @@ jobs:
     - shell: bash
       run: node "$GITHUB_WORKSPACE/.github/workflows/release-client-ios.mjs" step
         7
-    - env:
-        IOS_KEY: "${{ secrets.IOS_KEY }}"
-        IOS_PROVISIONING_PROFILE: "${{ secrets.APP_PROFILE }}"
-      shell: bash
-      run: node "$GITHUB_WORKSPACE/.github/workflows/release-client-ios.mjs" step
-        8
-    - shell: bash
-      run: node "$GITHUB_WORKSPACE/.github/workflows/release-client-ios.mjs" step
-        9
-    - if: "${{ always() && env.TUYUFACTORY_WORK_ID != '' }}"
-      env:
-        TUYUFACTORY_CLEAN_RELEASE: "${{ job.status != 'success' && 'true' || 'false'
-          }}"
-      shell: bash
-      run: node "$GITHUB_WORKSPACE/.github/workflows/release-client-ios.mjs" step
-        10
     - id: complete
-      name: 逐件收集完整正式产物
-      run: node .github/workflows/release-client-ios.mjs collect-produced
-    - name: 交付本次完整产物
+      name: 收集未签名候选
+      run: node .github/workflows/release-client-ios.mjs unsigned
+    - name: 交付未签名候选
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: release-output
@@ -132,59 +116,3 @@ jobs:
         retention-days: 7
     needs:
     - prepare
-  publish:
-    needs:
-    - prepare
-    - flow
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    env:
-      RELEASE_VERSION: "${{ needs.prepare.outputs.version }}"
-      RELEASE_TAG: "${{ needs.prepare.outputs.tag }}"
-      GH_TOKEN: "${{ github.token }}"
-      CI: 'true'
-      CARGO_INCREMENTAL: '0'
-      PRODUCER_RUN_ID: "${{ github.run_id }}"
-    steps:
-    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      with:
-        ref: "${{ github.sha }}"
-        fetch-depth: 0
-        persist-credentials: false
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-      with:
-        node-version: 25.2.1
-    - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-      with:
-        name: release-output
-        path: "${{ runner.temp }}/release-output"
-    - id: complete
-      name: 正式Release上传并逐件回读
-      run: node .github/workflows/release-client-ios.mjs publish "$RUNNER_TEMP/release-output"
-  cleanup:
-    if: "${{ always() }}"
-    needs:
-    - prepare
-    - flow
-    - publish
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: write
-      contents: write
-    env:
-      GH_TOKEN: "${{ github.token }}"
-      RELEASE_NEEDS: "${{ toJSON(needs) }}"
-      RELEASE_TAG: "${{ needs.prepare.outputs.tag }}"
-      PRODUCER_RUN_ID: "${{ github.run_id }}"
-    steps:
-    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      with:
-        ref: "${{ github.sha }}"
-        fetch-depth: 0
-        persist-credentials: false
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-      with:
-        node-version: 25.2.1
-    - name: 按全部前置结果清理本目标同类历史
-      run: node .github/workflows/release-client-ios.mjs finish
