@@ -173,18 +173,22 @@ export async function verifyUnsigned(platform,directory,run){
 
 // 本机签名只消费同一成功自动化的准确字节；子进程退出后才清理本轮现场。
 const localSignedProofs=new WeakSet();
-async function localCommand(command,args,{cwd,env,capture=false,timeout=1800000}={}){
+async function localCommand(command,args,{cwd,env,capture=false,timeout=1800000,signal:abortSignal}={}){
+ abortSignal?.throwIfAborted();
  const {spawn}=await import('node:child_process');
  return new Promise((resolve,reject)=>{
    let child;try{child=spawn(command,args,{cwd,env,detached:true,stdio:['ignore',capture?'pipe':'ignore','ignore']});}
    catch{reject(Error('本机签名工具无法启动'));return;}
    const parts=[];let size=0,failed=false,settled=false;
-   const stop=()=>{if(!child.pid)return;try{process.kill(-child.pid,'SIGTERM');}catch{child.kill();}};
+   let escalation;const stop=()=>{if(!child.pid||escalation)return;try{process.kill(-child.pid,'SIGTERM');}catch{child.kill();}
+     escalation=setTimeout(()=>{try{process.kill(-child.pid,'SIGKILL');}catch{}},2000);escalation.unref?.();};
    const timer=setTimeout(()=>{failed=true;stop();},timeout);
+   const abort=()=>{failed=true;stop();};abortSignal?.addEventListener('abort',abort,{once:true});
+   if(abortSignal?.aborted)abort();
    if(capture&&child.stdout)child.stdout.on('data',part=>{size+=part.length;if(size>8*1024*1024){failed=true;stop();}else parts.push(part);});
-   child.once('error',()=>{if(settled)return;settled=true;clearTimeout(timer);reject(Error('本机签名工具无法启动'));});
-   child.once('close',(code,signal)=>{if(settled)return;settled=true;clearTimeout(timer);
-     if(failed||code!==0||signal)reject(Error('本机签名工具失败或超时'));
+   child.once('error',()=>{if(settled)return;settled=true;clearTimeout(timer);clearTimeout(escalation);abortSignal?.removeEventListener('abort',abort);reject(Error('本机签名工具无法启动'));});
+   child.once('close',(code,termination)=>{if(settled)return;settled=true;clearTimeout(timer);clearTimeout(escalation);abortSignal?.removeEventListener('abort',abort);
+     if(failed||code!==0||termination)reject(Error('本机签名工具失败、取消或超时'));
      else resolve(capture?Buffer.concat(parts).toString('utf8'):'');
    });
  });
@@ -194,7 +198,8 @@ async function localSigningSource(platform){
  if(typeof module.localSigningSources!=='function')fail('本仓本机签名接口缺失');
  return module.localSigningSources();
 }
-export async function signUnsigned(platform,directory,run,material,workRoot,{environment:tools=process.env}={}){
+export async function signUnsigned(platform,directory,run,material,workRoot,{environment:tools=process.env,signal}={}){
+ signal?.throwIfAborted();
  const fs=await import('node:fs'),path=await import('node:path');
  const proof=await verifyUnsigned(platform,directory,run),refs=await signingConfiguration(platform),kind=mobileKind(platform);
  const expected=refs.map(ref=>ref.environment+':'+ref.name);
@@ -213,14 +218,14 @@ export async function signUnsigned(platform,directory,run,material,workRoot,{env
      fs.copyFileSync(path.join(project,'build/app/outputs/flutter-apk/app-release.apk'),path.join(stage,'candidate.apk'));
    }else{
      const archive=path.join(directory,unsignedNames(platform)[0]);
-     const names=(await localCommand('/usr/bin/unzip',['-Z1',archive],{capture:true,timeout:300000})).trim().split('\n');
+     const names=(await localCommand('/usr/bin/unzip',['-Z1',archive],{capture:true,timeout:300000,signal})).trim().split('\n');
      if(names.length<2||names.length>20000||new Set(names).size!==names.length
        ||names.some(name=>!name.startsWith('Runner.app/')&&name!=='__MACOSX/'&&!name.startsWith('__MACOSX/Runner.app/'))
        ||names.some(name=>name.split('/').some(part=>part==='..'||part==='.'||part==='')))fail('iOS未签名包路径无效');
-     const listing=await localCommand('/usr/bin/bsdtar',['-tvf',archive],{capture:true,timeout:300000});
+     const listing=await localCommand('/usr/bin/bsdtar',['-tvf',archive],{capture:true,timeout:300000,signal});
      if(listing.split('\n').filter(Boolean).some(line=>!['-','d'].includes(line[0])))fail('iOS未签名包包含链接或特殊文件');
      const ios=path.join(project,'build/ios/iphoneos');fs.mkdirSync(ios,{recursive:true,mode:0o700});
-     await localCommand('/usr/bin/ditto',['-x','-k',archive,ios],{timeout:300000});
+     await localCommand('/usr/bin/ditto',['-x','-k',archive,ios],{timeout:300000,signal});
      const app=path.join(ios,'Runner.app');if(!fs.lstatSync(app).isDirectory()||fs.realpathSync(app)!==app)fail('iOS未签名应用目录无效');
      const stack=[ios];let inspected=0;while(stack.length){const current=stack.pop();for(const item of fs.readdirSync(current,{withFileTypes:true})){
        const candidate=path.join(current,item.name),resolved=fs.realpathSync(candidate);
@@ -244,17 +249,17 @@ export async function signUnsigned(platform,directory,run,material,workRoot,{env
    else{env.IOS_KEY=material[signingEnvironment+':IOS_KEY'].toString('utf8');env.IOS_PROVISIONING_PROFILE=material[signingEnvironment+':APP_PROFILE'].toString('utf8');}
    const scripts=await localSigningSource(platform);
    if(kind==='ios'){
-     const lines=(await localCommand('/usr/bin/security',['list-keychains','-d','user'],{capture:true,timeout:30000})).trim().split('\n');
+     const lines=(await localCommand('/usr/bin/security',['list-keychains','-d','user'],{capture:true,timeout:30000,signal})).trim().split('\n');
      originalKeychains=lines.map(line=>/^\s*"([^"]+)"\s*$/u.exec(line)?.[1]);
      if(!originalKeychains.length||originalKeychains.some(value=>!value))fail('用户钥匙串搜索列表无效');
    }
    try{
      await localCommand('bash',['--noprofile','--norc','-e','-o','pipefail','-c',scripts.sign],
-       {cwd:env.GITHUB_WORKSPACE,env,timeout:1800000});
+       {cwd:env.GITHUB_WORKSPACE,env,timeout:1800000,signal});
    }finally{delete env.APP_KEY;delete env.IOS_KEY;delete env.IOS_PROVISIONING_PROFILE;
      if(originalKeychains)await localCommand('/usr/bin/security',['list-keychains','-d','user','-s',...originalKeychains],{timeout:30000});}
    await localCommand('bash',['--noprofile','--norc','-e','-o','pipefail','-c',scripts.manifest],
-     {cwd:env.GITHUB_WORKSPACE,env,timeout:300000});
+     {cwd:env.GITHUB_WORKSPACE,env,timeout:300000,signal});
    const signedName=assets[platform],names=[signedName,'release-manifest.json','SHA256SUMS'];
    const manifest=JSON.parse(fs.readFileSync(path.join(release,'release-manifest.json'),'utf8'));
    if(manifest.product_id!==product||manifest.platform!==platform||manifest.software_version!==proof.version
@@ -264,12 +269,14 @@ export async function signUnsigned(platform,directory,run,material,workRoot,{env
    const signed=path.join(workRoot,'signed');fs.mkdirSync(signed,{mode:0o700});
    const result=[];for(const name of names){const item=ordinary(release,name,2*1024**3),target=path.join(signed,name);
      fs.copyFileSync(item.path,target);result.push({name,size:item.size,sha256:await sha256(target)});}
+   signal?.throwIfAborted();
    const receipt={...proof,directory:signed,signed_assets:result};localSignedProofs.add(receipt);return receipt;
  }finally{fs.rmSync(stage,{recursive:true,force:true});}
 }
 
 // 正式GitHub写入仅使用最终确认事务交付的一次性短期令牌，且只指向本产品仓库。
-async function localRequest(token,address,{method='GET',body,size,raw=false,send=fetch}={}){
+async function localRequest(token,address,{method='GET',body,size,raw=false,send=fetch,signal}={}){
+ signal?.throwIfAborted();
  const url=address.startsWith('https://')?new URL(address):new URL('https://api.github.com/repos/'+repository+'/'+address);
  if(url.protocol!=='https:'||!['api.github.com','uploads.github.com'].includes(url.hostname)
    ||url.username||url.password||url.hash||!url.pathname.startsWith('/repos/'+repository+'/'))fail('本产品GitHub发布地址无效');
@@ -278,11 +285,11 @@ async function localRequest(token,address,{method='GET',body,size,raw=false,send
      'X-GitHub-Api-Version':'2026-03-10','User-Agent':product,
      ...(body===undefined?{}:{'Content-Type':size?'application/octet-stream':'application/json'}),
      ...(size?{'Content-Length':String(size)}:{})},
-   ...(body===undefined?{}:{body:size?body:JSON.stringify(body)}),...(size?{duplex:'half'}:{}),signal:AbortSignal.timeout(180000)});
+   ...(body===undefined?{}:{body:size?body:JSON.stringify(body)}),...(size?{duplex:'half'}:{}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(180000)]):AbortSignal.timeout(180000)});
  if(raw&&response.status===302){const location=new URL(response.headers.get('location'));
    if(location.protocol!=='https:'||location.username||location.password||location.hash
      ||!/(?:^|\.)githubusercontent\.com$/u.test(location.hostname))fail('正式资产回读地址无效');
-   await response.body?.cancel();response=await send(location.href,{method:'GET',redirect:'error',credentials:'omit',signal:AbortSignal.timeout(180000)});
+   await response.body?.cancel();response=await send(location.href,{method:'GET',redirect:'error',credentials:'omit',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(180000)]):AbortSignal.timeout(180000)});
  }
  if(response.status===404&&method==='GET')return null;
  if(!response.ok)fail('本产品GitHub发布请求失败：HTTP '+response.status);
@@ -293,13 +300,14 @@ async function localRequest(token,address,{method='GET',body,size,raw=false,send
  try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(parts)));}
  catch{fail('本产品GitHub发布回执格式无效');}
 }
-async function localReadback(token,asset,expected,send){
- const response=await localRequest(token,'releases/assets/'+asset.id,{raw:true,send});
+async function localReadback(token,asset,expected,send,signal){
+ const response=await localRequest(token,'releases/assets/'+asset.id,{raw:true,send,signal});
  if(!response?.body)fail('正式资产回读失败');
  const hash=createHash('sha256');let size=0;for await(const part of response.body){size+=part.length;if(size>expected.size)fail('正式资产回读超过声明大小');hash.update(part);}
  if(size!==expected.size||hash.digest('hex')!==expected.sha256)fail('正式资产逐件回读不一致');
 }
-export async function publishSigned(signed,token,{expiresAt,send=fetch}={}){
+export async function publishSigned(signed,token,{expiresAt,send=fetch,signal}={}){
+ signal?.throwIfAborted();
  if(!localSignedProofs.has(signed)||typeof token!=='string'||!token||/[\s\x00-\x1f\x7f]/u.test(token)
    ||!Number.isSafeInteger(expiresAt)||expiresAt<=Math.floor(Date.now()/1000)+30)fail('本机签名回执或发布令牌无效');
  localSignedProofs.delete(signed);
@@ -318,7 +326,8 @@ export async function publishSigned(signed,token,{expiresAt,send=fetch}={}){
  const sums=readFileSync(join(signed.directory,'SHA256SUMS'),'utf8').trim().split('\n');
  const expectedSums=signed.signed_assets.filter(item=>item.name!=='SHA256SUMS').map(item=>item.sha256+'  '+item.name);
  if(sums.length!==2||sums.slice().sort().join('\0')!==expectedSums.sort().join('\0'))fail('正式摘要清单无效');
- const api=(path,options)=>localRequest(token,path,{...options,send});
+ const api=(path,options)=>localRequest(token,path,{...options,send,signal});
+ const rollbackApi=(path,options)=>localRequest(token,path,{...options,send});
  const workflow='release-'+signed.platform+'.yml';
  const listed=await api('actions/workflows/'+workflow+'/runs?branch=main&event=workflow_dispatch&status=completed&per_page=100');
  const current=listed?.workflow_runs?.find(run=>run.conclusion==='success');
@@ -328,10 +337,11 @@ export async function publishSigned(signed,token,{expiresAt,send=fetch}={}){
  if(run?.status!=='completed'||run.conclusion!=='success'||run.id!==signed.run_id
    ||run.run_attempt!==signed.run_attempt||run.head_sha!==signed.source_sha)fail('成功自动化身份已变化');
  if(await api('git/ref/tags/'+encodeURIComponent(signed.tag))!==null)fail('本次Tag已存在');
- let tagCreated=false,releaseID=null;
+ let attemptedTag=false,tagConfirmed=false,attemptedRelease=false,releaseID=null;
  try{
-   const tag=await api('git/refs',{method:'POST',body:{ref:'refs/tags/'+signed.tag,sha:signed.source_sha}});
-   if(tag?.ref!=='refs/tags/'+signed.tag||tag.object?.sha!==signed.source_sha)fail('正式Tag创建未确认');tagCreated=true;
+   attemptedTag=true;const tag=await api('git/refs',{method:'POST',body:{ref:'refs/tags/'+signed.tag,sha:signed.source_sha}});
+   if(tag?.ref!=='refs/tags/'+signed.tag||tag.object?.sha!==signed.source_sha)fail('正式Tag创建未确认');
+   tagConfirmed=true;attemptedRelease=true;
    const release=await api('releases',{method:'POST',body:{tag_name:signed.tag,target_commitish:signed.source_sha,
      name:product+' · '+signed.platform+' · '+signed.version,draft:false,prerelease:false,make_latest:'false',
      body:'Source: '+signed.source_sha+'\nRun: '+signed.run_id+' / '+signed.run_attempt}});
@@ -340,30 +350,49 @@ export async function publishSigned(signed,token,{expiresAt,send=fetch}={}){
    for(const item of signed.signed_assets){const url=new URL(release.upload_url.replace(/\{.*$/u,''));url.searchParams.set('name',item.name);
      const asset=await api(url.href,{method:'POST',body:createReadStream(join(signed.directory,item.name)),size:item.size});
      if(asset?.name!==item.name||asset.size!==item.size||asset.state!=='uploaded')fail('正式资产上传未确认');
-     await localReadback(token,asset,item,send);
+     await localReadback(token,asset,item,send,signal);
    }
+   signal?.throwIfAborted();
    const final=await api('releases/'+releaseID),verifiedTag=await api('git/ref/tags/'+encodeURIComponent(signed.tag));
    if(final?.tag_name!==signed.tag||final.draft||final.prerelease||final.assets?.length!==names.length
      ||verifiedTag?.object?.type!=='commit'||verifiedTag.object.sha!==signed.source_sha
      ||signed.signed_assets.some(item=>!final.assets.some(asset=>asset.name===item.name&&asset.size===item.size
        &&asset.state==='uploaded'&&asset.digest==='sha256:'+item.sha256)))fail('正式Release回查未闭合');
+   signal?.throwIfAborted();
+   const workflowModule=await freshSource('../.github/workflows/'+workflow.replace('.yml','.mjs'));
+   if(typeof workflowModule.finish!=='function')fail('本仓历史清理接口缺失');
+   await workflowModule.finish({publish:{result:'success'}},api,{run_id:signed.run_id,run_attempt:signed.run_attempt,source_sha:signed.source_sha,tag:signed.tag});
+   signal?.throwIfAborted();
  }catch(error){
-   if(releaseID){try{const owned=await api('releases/'+releaseID);if(owned?.tag_name===signed.tag)await api('releases/'+releaseID,{method:'DELETE'});}catch{}}
-   if(tagCreated){try{const owned=await api('git/ref/tags/'+encodeURIComponent(signed.tag));
-     if(owned?.object?.sha===signed.source_sha)await api('git/refs/tags/'+encodeURIComponent(signed.tag),{method:'DELETE'});}catch{}}
+   const failures=[];let releaseRemoved=!attemptedRelease;
+   if(attemptedRelease&&!releaseID)failures.push(Error('本次Release创建结果未确认，不能删除未知归属的远端资源'));
+   if(releaseID)try{const path='releases/'+releaseID;
+     const owned=await rollbackApi(path);
+     if(owned&&(owned.tag_name!==signed.tag||owned.target_commitish!==signed.source_sha))fail('本次Release归属已变化');
+     if(owned)await rollbackApi('releases/'+owned.id,{method:'DELETE'});
+     if(await rollbackApi('releases/tags/'+encodeURIComponent(signed.tag))!==null)fail('本次Release撤销未确认');
+     releaseRemoved=true;
+   }catch(rollback){failures.push(rollback);}
+   if(attemptedTag&&!tagConfirmed)failures.push(Error('本次Tag创建结果未确认，不能删除未知归属的远端资源'));
+   if(tagConfirmed&&releaseRemoved)try{const path='git/ref/tags/'+encodeURIComponent(signed.tag),owned=await rollbackApi(path);
+     if(owned&&owned.object?.sha!==signed.source_sha)fail('本次Tag来源已变化');
+     if(owned)await rollbackApi('git/refs/tags/'+encodeURIComponent(signed.tag),{method:'DELETE'});
+     if(await rollbackApi(path)!==null)fail('本次Tag撤销未确认');
+   }catch(rollback){failures.push(rollback);}
+   if(failures.length)throw new AggregateError([error,...failures],'正式发布取消或失败后远端撤销未闭合');
    throw error;
  }
- const workflowModule=await freshSource('../.github/workflows/'+workflow.replace('.yml','.mjs'));
- if(typeof workflowModule.finish!=='function')fail('本仓历史清理接口缺失');
- await workflowModule.finish({publish:{result:'success'}},api,{run_id:signed.run_id,run_attempt:signed.run_attempt,source_sha:signed.source_sha,tag:signed.tag});
  return {release_id:releaseID,tag:signed.tag,run_id:signed.run_id,source_sha:signed.source_sha};
 }
 
-export function testFiles(){return ['scripts/publish.mjs','.github/workflows/release-client-android.mjs','.github/workflows/release-client-ios.mjs'];}
-export async function testTools(){return [];}
 const direct=process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url);
 if(direct&&process.env.NODE_TEST_CONTEXT){
  const {test}=await import('node:test'),{default:assert}=await import('node:assert/strict');
+ test('本机签名取消在启动前失败关闭，不能领取正式发布回执',async()=>{
+  const cancellation=new AbortController();cancellation.abort();
+  await assert.rejects(localCommand(process.execPath,['-e',''],{signal:cancellation.signal}),{name:'AbortError'});
+  await assert.rejects(publishSigned({},'synthetic',{signal:cancellation.signal}),{name:'AbortError'});
+ });
  test('厂家端正式签名需求由本产品独立公开声明',async()=>{
   const {describeConfiguration}=await import('./config.mjs'),items=describeConfiguration().configuration.items;
   assert.deepEqual(items.map(item=>item.name),['APP_KEY','IOS_KEY','APP_PROFILE']);

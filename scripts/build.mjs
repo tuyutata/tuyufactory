@@ -781,6 +781,10 @@ export function outputDigest(path) {
 }
 
 // 宿主完整Build先由调用方消费回执、安装并收尾；独立执行由本产品清空现场。
+// 编译任务先执行本仓现有回归；测试清单只归所属产品Build接口。
+export function testFiles(){return ['scripts/build.mjs','scripts/publish.mjs','app/scripts/project.mjs','.github/workflows/release-client-android.mjs','.github/workflows/release-client-ios.mjs','.github/workflows/release-client-macos.mjs','.github/workflows/release-client-windows.mjs','.github/workflows/release-host-linux-amd.mjs','.github/workflows/release-host-linux-arm.mjs','.github/workflows/release-host-macos.mjs','.github/workflows/release-host-windows.mjs'];}
+export async function testTools(){return [];}
+
 export async function execute(platform,work,request={},options={}) {
  checkFixedWork(work,{create:true});
  return withFixedWork(taskScope(work),()=>executeTask(platform,work,request,options),{run_id:request.run_id,environment:options.environment||process.env,retain:(options.environment||process.env).PRODUCT_RESOURCE_FD==='4'||(options.environment||process.env).PRODUCT_HOST_FD==='3'});
