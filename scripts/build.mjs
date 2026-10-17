@@ -2,7 +2,6 @@
 // 本产品独立拥有资源需求、工程准备与编译；公开回执仅提供验真资源，不提供执行命令。
 import {spawn,spawnSync} from 'node:child_process';
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {Socket} from 'node:net';
 import {rmSync,rmdirSync,chmodSync,closeSync,openSync,renameSync,readlinkSync,unlinkSync,copyFileSync,existsSync,lstatSync,mkdirSync,readFileSync,readdirSync,realpathSync,symlinkSync,writeFileSync} from 'node:fs';
 import {basename,dirname,isAbsolute,join,parse,relative,resolve,sep} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -293,7 +292,6 @@ export async function copyBuildOriginal(url,sha256,destination,environment=proce
  if(!isAbsolute(destination)||resolve(destination)!==destination||!destination.startsWith(work+sep))fail('运行时原件输出越界');
  const source=join(work,'dependencies/archives/runtime',sha256+'.blob');mkdirSync(dirname(destination),{recursive:true});
  if(existsSync(source)){if(realpathSync(source)!==source||!lstatSync(source).isFile())fail('运行时交付不是普通文件');if(source!==destination)copyFileSync(source,destination);return destination;}
- if(environment["TUYUFACTORY_RESOURCE_MODE"]==='provided')fail('控制台供给缺少运行时原件');
  const recipe=resourceInternals,prepared=await recipe.acquireArchive(wanted,{work,store:join(work,'dependencies/runtime-originals'),offline:environment[prefix+'_OFFLINE']==='true'});copyFileSync(prepared,destination);return destination;
 }
 
@@ -371,7 +369,7 @@ export function resourceEnvironment(platform,work,receipt,base={}) {
  env[prefix+'_PUB_OFFLINE']='true';env.GRADLE_OPTS='-Dorg.gradle.project.android.builder.sdkDownload=false';
  if(receipt.archives.native)env.CHATSERVER_NATIVE_ARCHIVE=receipt.archives.native[0].path;
  if(receipt.archives.protocol)env.CHATSERVER_PROTOCOL_ARCHIVE=receipt.archives.protocol[0].path;
- if(base.PRODUCT_RESOURCE_FD==='4')env["TUYUFACTORY_RESOURCE_MODE"]='provided';else env["TUYUFACTORY_RESOURCE_MODE"]??='independent';
+ env["TUYUFACTORY_RESOURCE_MODE"]??='independent';
  if(env["TUYUFACTORY_RESOURCE_MODE"]==='provided'){env.PIP_NO_INDEX='1';env.COMPOSER_DISABLE_NETWORK='1';env.YARN_ENABLE_NETWORK='0';}
  const execution=executions.getStore();if(execution)execution.buildEnvironment=env;
  env.PRODUCT_SDK_SOURCE_MODE=localSdkMode()?'local':'git';
@@ -609,8 +607,7 @@ async function nativeVerifier(work,env) {
  if(state)state.verifier=verify;return verify;
 }
 async function developmentMaterial(work,env,value) {
- const operation=value===undefined?'development.read':'development.create',host=await productHost();
- if(host)return host(operation,value);
+ const operation=value===undefined?'development.read':'development.create';
  const verifier=await nativeVerifier(work,env);return (await verifier({operation,product_id:product,...(value===undefined?{}:{value})})).value;
 }
 export function parseAndroidSigning(encoded) {
@@ -734,8 +731,6 @@ async function saveMobileArtifact(platform,work,path) {
  const declared=platformContract(platform);if(declared.files.length!==1)fail('移动候选登记不唯一');
  const publicPath=join(work,declared.files[0]);
  if(path!==publicPath){unlinkSync(publicPath);copyFileSync(path,publicPath);}
- const host=await productHost();
- if(host)await host('artifact',[{path:publicPath,sha256:outputDigest(publicPath)}]);
 }
 async function completeMobile(platform,work,receipt,env) {
  executions.getStore()?.signal?.throwIfAborted();if(platform.endsWith('android'))await completeAndroid(platform,work,receipt,env);else await completeIOS(platform,work,receipt,env);
@@ -787,9 +782,9 @@ export function outputDigest(path) {
 }
 
 // 宿主完整Build先由调用方消费回执、安装并收尾；独立执行由本产品清空现场。
-// 本仓完整Build在资源回执后运行自己的测试，控制台不选择测试清单。
+// 本产品拥有测试清单、资源准备和执行顺序。
 function testFiles(){return ['scripts/build.mjs','scripts/publish.mjs','app/scripts/project.mjs','.github/workflows/release-client-android.mjs','.github/workflows/release-client-ios.mjs','.github/workflows/release-client-macos.mjs','.github/workflows/release-client-windows.mjs','.github/workflows/release-host-linux-amd.mjs','.github/workflows/release-host-linux-arm.mjs','.github/workflows/release-host-macos.mjs','.github/workflows/release-host-windows.mjs'];}
-// 产品在资源回执后运行自身Node回归；控制台只调用完整Build。
+// 本产品独立拥有此实现，通过自身公开接口执行。
 async function runProductTests(platform,work,receipt,base){
  const env=resourceEnvironment(platform,work,receipt,base),node=receipt.tools.node;
  if(!node||node.version!==contract.platforms[platform].tools.find(value=>value.id==='node')?.version
@@ -829,7 +824,7 @@ if(testSession&&process.argv.length===2&&resolve(process.argv[1]||'')===fileURLT
 export async function execute(platform,work,request={},options={}) {
  if(options.stages&&!process.env.NODE_TEST_CONTEXT)fail('合成阶段仅用于本仓测试');
  checkFixedWork(work,{create:true});
- return withFixedWork(taskScope(work),()=>executeTask(platform,work,request,options),{run_id:request.run_id,environment:options.environment||process.env,retain:(options.environment||process.env).PRODUCT_RESOURCE_FD==='4'||(options.environment||process.env).PRODUCT_HOST_FD==='3'});
+ return withFixedWork(taskScope(work),()=>executeTask(platform,work,request,options),{run_id:request.run_id,environment:options.environment||process.env});
 }
 async function executeTask(platform,work,request={},options={}) {
  checkWork(work);platformContract(platform);
@@ -843,15 +838,11 @@ async function executeTask(platform,work,request={},options={}) {
  if(existsSync(resultFile))fail('本轮完整Build已有结果，禁止复用旧终态');
  const handle=openSync(lock,'wx',0o600);closeSync(handle);
  const cancellation=new AbortController(),abort=()=>cancellation.abort();options.signal?.addEventListener('abort',abort,{once:true});if(options.signal?.aborted)abort();
- const state={signal:cancellation.signal,cancellation,host:options.host,unconfirmed:false,finished:false};
+ const state={signal:cancellation.signal,cancellation,unconfirmed:false,finished:false};
  try{return await executions.run(state,async()=>{
   const stages=options.stages||{requirements,resources:(...args)=>resourceInternals.resources(...args),prepare,build};
   const resourcesOptions={signal:state.signal,offline:Boolean(options.offline),environment:options.environment||process.env};
 
-  if((options.environment||process.env).PRODUCT_RESOURCE_FD==='4'){
-   state.resourceClient=options.resourceClient||createResourceSupplyClient(new Socket({fd:4,readable:true,writable:true}),state.signal);
-   resourcesOptions.supply=previous=>state.resourceClient({previous});
-  }
   await stages.requirements(platform,work);state.signal.throwIfAborted();
   let receipt=await stages.resources(platform,work,request,resourcesOptions);state.signal.throwIfAborted();
   if(!options.stages)await runProductTests(platform,work,receipt,resourcesOptions.environment);
@@ -862,7 +853,7 @@ async function executeTask(platform,work,request={},options={}) {
   const result=await stages.build(platform,work,receipt,resourcesOptions.environment);state.signal.throwIfAborted();
   checkBuildResult(result,platform,work,request.run_id);
   writeFileSync(resultFile,JSON.stringify(result)+'\n',{flag:'wx',mode:0o600});return result;
- });}catch(error){if(String(error?.message).includes('退出未确认'))state.unconfirmed=true;throw error;}finally{state.finished=true;state.socket?.destroy();state.resourceClient?.close?.();options.signal?.removeEventListener('abort',abort);if(!state.unconfirmed){unlinkSync(lock);if((options.environment||process.env).PRODUCT_RESOURCE_FD!=='4'&&(options.environment||process.env).PRODUCT_HOST_FD!=='3')clearWork(work);}}
+ });}catch(error){if(String(error?.message).includes('退出未确认'))state.unconfirmed=true;throw error;}finally{state.finished=true;options.signal?.removeEventListener('abort',abort);if(!state.unconfirmed){unlinkSync(lock);clearWork(work);}}
 }
 export function checkBuildResult(value,platform,work,runId) {
  const factory=platformContract(platform);
@@ -893,19 +884,7 @@ async function completeBuild(platform,work,receipt,env) {
 }
 
 // 全双工宿主通道只传开发签名材料，不与stdout结果、stderr日志或资源回执混用。
-async function productHost() {
- const supplied=executions.getStore()?.host;if(supplied)return supplied;
- if(process.env.PRODUCT_HOST_FD===undefined)return null;
- if(process.env.PRODUCT_HOST_FD!=='3')fail('宿主通道描述符无效');
- const socket=new Socket({fd:3,readable:true,writable:true}),pending=new Map();let buffer='',sequence=0;
- socket.on('data',chunk=>{buffer+=chunk.toString('utf8');if(Buffer.byteLength(buffer)>128*1024){socket.destroy();return;}
-  let end;while((end=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,end);buffer=buffer.slice(end+1);try{const reply=JSON.parse(line),entry=pending.get(reply.id);if(!entry)throw Error();pending.delete(reply.id);clearTimeout(entry.timer);if(reply.ok!==true)entry.reject(Error('开发签名材料宿主操作失败'));else entry.resolve(reply.value);}catch{socket.destroy();}}});
- const close=()=>{const state=executions.getStore();if(state&&!state.finished)state.cancellation?.abort();for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(Error('产品宿主通道中断'));}pending.clear();};socket.on('error',close);socket.on('close',close);socket.unref();
- const host=(operation,value)=>new Promise((resolve,reject)=>{if(!['development.read','development.create','artifact'].includes(operation))return reject(Error('宿主能力未授权'));
-  const id=String(++sequence),timer=setTimeout(()=>{pending.delete(id);reject(Error('开发材料操作超时'));socket.destroy();},30000);
-  pending.set(id,{resolve,reject,timer});socket.write(JSON.stringify({id,operation,...(value===undefined?{}:operation==='artifact'?{files:value}:{value})})+'\n');});
- executions.getStore().host=host;executions.getStore().socket=socket;return host;
-}
+
 // 模块先完成初始化，资源模块才能反向导入本文件的唯一校验；异步CLI在独立Promise中执行。
 // 所有本机原生编译正文集中于此；不生成第二份脚本。
 export const BUILD_SHELL_SOURCES=Object.freeze({"runtime":"#!/usr/bin/env bash\nset -euo pipefail\n# 本机生成物由本产品清理。\nproduct_clean() { \"${PRODUCT_NODE_BIN:-${NODE:?缺少本产品Node入口}}\" \"$PRODUCT_BUILD_ROOT/scripts/build.mjs\" clean \"$@\"; }\n\nSCRIPT_DIR=\"$(cd \"$(dirname \"$PRODUCT_BUILD_SCRIPT\")\" && pwd)\"\nROOT=\"$(cd \"$SCRIPT_DIR/..\" && pwd)\"\nDESTINATION=\"${1:?usage: build.mjs shell runtime DESTINATION}\"\n# 原件输入在创建或清理任何本轮目录前验证；没有交付组件就保持源码与既有候选不变。\n\"${NODE:?缺少Node准确入口}\" --input-type=module - \"$ROOT\" <<'COMPONENT_INPUTS'\nimport { lstatSync, realpathSync } from 'node:fs';\nimport { isAbsolute, join, resolve, sep } from 'node:path';\nconst source = realpathSync(process.argv[2]);\nfor (const name of ['TUYU_OPENSSL_PREFIX', 'TUYU_LIBFFI_PREFIX', 'TUYU_PANGO_PREFIX']) {\n  const path = process.env[name];\n  if (!path || !isAbsolute(path) || resolve(path) !== path || realpathSync(path) !== path\n    || !lstatSync(path).isDirectory() || path === source || (path.startsWith(source + sep) && !path.startsWith(join(source, 'target') + sep))\n    || source.startsWith(path + sep)) throw Error('编译组件未交付或目录身份无效：' + name);\n}\nCOMPONENT_INPUTS\n\n# 所有独立入口的工具临时状态归本产品target；宿主已交付的产品工作根继续归当前任务。\nPRODUCT_TEMP_SCRIPT=\"${PRODUCT_BUILD_SCRIPT}\"\nwhile [[ -L \"$PRODUCT_TEMP_SCRIPT\" ]]; do\n  PRODUCT_TEMP_LINK=\"$(readlink \"$PRODUCT_TEMP_SCRIPT\")\"\n  [[ \"$PRODUCT_TEMP_LINK\" == /* ]] || PRODUCT_TEMP_LINK=\"$(cd \"$(dirname \"$PRODUCT_TEMP_SCRIPT\")\" && pwd -P)/$PRODUCT_TEMP_LINK\"\n  PRODUCT_TEMP_SCRIPT=\"$PRODUCT_TEMP_LINK\"\ndone\nPRODUCT_TEMP_SOURCE=\"$(cd \"$(dirname \"$PRODUCT_TEMP_SCRIPT\")/..\" && pwd -P)\"\nPRODUCT_TARGET_TEMP_ROOT=\"$(\"${PRODUCT_NODE_BIN:-${NODE:-node}}\" \"$PRODUCT_TEMP_SOURCE/scripts/build.mjs\" temporary-root \"${PLATFORM:-${platform:-}}\" 'host-macos')\" || exit 1\nif [[ -z \"${PRODUCT_WORK_DIR:-}\" && \"${TMPDIR:-}\" != \"$PRODUCT_TEMP_SOURCE/target/\"* ]]; then\n  export TMPDIR=\"$PRODUCT_TARGET_TEMP_ROOT/\"\nfi\nWORK_ROOT=\"${TUYUFACTORY_WORK_DIR:-${TMPDIR:-$PRODUCT_TARGET_TEMP_ROOT}/tuyufactory/host/macos}\"\nBUILD=\"${TUYUFACTORY_BUILD_DIR:-$WORK_ROOT/build}\"\nSOURCES=\"$WORK_ROOT/sources\"\nLANGUAGE=\"$BUILD/language\"\nPOSTGRES=\"$BUILD/postgresql\"\nBUILD_WORK=\"$BUILD\"\nDEPENDENCY_ROOT=\"${TUYUFACTORY_DEPENDENCY_DIR:-$WORK_ROOT/dependencies}\"\nexport TUYUFACTORY_DEPENDENCY_DIR=\"$DEPENDENCY_ROOT\"\nDOWNLOADS=\"$DEPENDENCY_ROOT/factory-downloads\"\nPACKAGE_CACHE=\"$DEPENDENCY_ROOT/package-managers\"\nLANGUAGE_CACHE=\"$DEPENDENCY_ROOT/compiled/language-base\"\nPOSTGRES_CACHE=\"$DEPENDENCY_ROOT/compiled/postgresql-base\"\nTOOLCHAIN_FINGERPRINT=\"\"\nTOOLCHAIN_FINGERPRINT=\"$({\n  printf '%s\\n' 'tuyufactory-macos-toolchain-v1'\n  shasum -a 256 \"$ROOT/native/runtime.lock.json\" \"$0\"\n} | shasum -a 256 | awk '{print $1}')\"\n\n[[ \"$(uname -s)\" == Darwin && \"$(uname -m)\" == arm64 ]] || {\n  echo '厂家端 macOS 运行包只能在真实 macOS 主机生成' >&2\n  exit 1\n}\n[[ ! -e \"$DESTINATION\" ]] || { echo \"厂家端运行包目标已经存在：$DESTINATION\" >&2; exit 1; }\n\"${PYTHON:?缺少Python准确入口}\" - \"$ROOT\" \"$WORK_ROOT\" \"$BUILD\" \"$DEPENDENCY_ROOT\" \"$DESTINATION\" <<'CHECK_PATHS'\nfrom pathlib import Path\nimport sys\nsource = Path(sys.argv[1]).resolve()\nfor value in sys.argv[2:]:\n    raw, target = Path(value), Path(value).resolve()\n    if not raw.is_absolute() or source / 'target' not in target.parents:\n        raise SystemExit(f'TuyuFactory可写目录必须是本产品target内绝对路径：{value}')\nCHECK_PATHS\n\ncleanup() {\n  for item in \"$BUILD\" \"$SOURCES\"; do\n    [[ ! -e \"$item\" ]] || product_clean -rf \"$item\" 2>/dev/null || true\n  done\n}\ntrap cleanup EXIT\nmkdir -p \"$WORK_ROOT\" \"$SOURCES\" \"$DOWNLOADS\" \"$PACKAGE_CACHE\" \"$LANGUAGE\" \"$POSTGRES\"\nexport npm_config_cache=\"$PACKAGE_CACHE/npm\"\nexport YARN_CACHE_FOLDER=\"$PACKAGE_CACHE/yarn\"\nexport PIP_CACHE_DIR=\"$PACKAGE_CACHE/pip\"\n# 厂家端三层原生组件使用同一最低系统版本，禁止继承 Runner 的测试 SDK 默认值。\nexport MACOSX_DEPLOYMENT_TARGET=26.0\n\nLOCK_VALUES=\"$(node --input-type=module - \"$ROOT/native/runtime.lock.json\" <<'NODE'\nimport { readFileSync } from 'node:fs';\nimport { dirname, join } from 'node:path';\nimport { pathToFileURL } from 'node:url';\nconst lock = JSON.parse(readFileSync(process.argv[2], 'utf8'));\nconst {runtimeTool} = await import(pathToFileURL(join(dirname(dirname(process.argv[2])), 'scripts', 'build.mjs')));\nconst node = await runtimeTool('node', 'macos');\nconsole.log([node.version, node.filename, node.root,\n  ...[lock.sources.python_source, node, lock.sources.postgresql_source].flatMap(value => [value.url, value.sha256])].join('\\t'));\nNODE\n)\"\nIFS=$'\\t' read -r NODE_VERSION NODE_FILENAME NODE_ROOT PYTHON_URL PYTHON_SHA NODE_URL NODE_SHA POSTGRES_URL POSTGRES_SHA <<< \"$LOCK_VALUES\"\n# 产品工具更新必须使原语言缓存失效，不能仅比较不含版本的产品引用。\nTOOLCHAIN_FINGERPRINT=\"$(printf '%s\\n' \"$TOOLCHAIN_FINGERPRINT\" \"$NODE_VERSION\" \"$NODE_SHA\" | shasum -a 256 | awk '{print $1}')\"\n\nfetch_locked() {\n  \"${PRODUCT_NODE_BIN:-${NODE:?缺少本产品Node}}\" \"$PRODUCT_BUILD_ROOT/scripts/build.mjs\" original \"$1\" \"$2\" \"$3\"\n}\n\n# 运行库由调用方按固定来源交付，不查询Homebrew或系统安装位置。\nOPENSSL_PREFIX=\"${TUYU_OPENSSL_PREFIX:?缺少验真的OpenSSL编译组件}\"\nLIBFFI_PREFIX=\"${TUYU_LIBFFI_PREFIX:?缺少验真的libffi编译组件}\"\nPANGO_PREFIX=\"${TUYU_PANGO_PREFIX:?缺少验真的Pango编译组件}\"\n\nPYTHON_ARCHIVE=\"$DOWNLOADS/Python-3.14.3.tgz\"\nNODE_ARCHIVE=\"$DOWNLOADS/$NODE_FILENAME\"\nPOSTGRES_ARCHIVE=\"$DOWNLOADS/postgresql-17.11.tar.bz2\"\nfetch_locked \"$PYTHON_URL\" \"$PYTHON_SHA\" \"$PYTHON_ARCHIVE\"\nfetch_locked \"$NODE_URL\" \"$NODE_SHA\" \"$NODE_ARCHIVE\"\nfetch_locked \"$POSTGRES_URL\" \"$POSTGRES_SHA\" \"$POSTGRES_ARCHIVE\"\n\nLANGUAGE_CACHE_HIT=0\nif [[ -n \"$LANGUAGE_CACHE\" && -f \"$LANGUAGE_CACHE/fingerprint\" \\\n    && \"$(cat \"$LANGUAGE_CACHE/fingerprint\")\" == \"$TOOLCHAIN_FINGERPRINT\" \\\n    && -x \"$LANGUAGE_CACHE/runtime/python/bin/python3\" \\\n    && -x \"$LANGUAGE_CACHE/runtime/node/bin/node\" ]]; then\n  find \"$LANGUAGE\" -depth -delete\n  ditto \"$LANGUAGE_CACHE/runtime\" \"$LANGUAGE\"\n  LANGUAGE_CACHE_HIT=1\nfi\nif [[ \"$LANGUAGE_CACHE_HIT\" != 1 ]]; then\n  tar -xzf \"$PYTHON_ARCHIVE\" -C \"$BUILD\"\n  (\n    cd \"$BUILD/Python-3.14.3\"\n    CPPFLAGS=\"-I$OPENSSL_PREFIX/include -I$LIBFFI_PREFIX/include\" \\\n    LDFLAGS=\"-L$OPENSSL_PREFIX/lib -L$LIBFFI_PREFIX/lib\" \\\n    ac_cv_func_dup3=no ac_cv_func_pipe2=no \\\n      ./configure --prefix=\"$LANGUAGE/python\" --enable-shared \\\n        --with-ensurepip=install --with-openssl=\"$OPENSSL_PREFIX\"\n    make -j\"$(sysctl -n hw.logicalcpu)\"\n    make install\n  )\n  mkdir -p \"$LANGUAGE/licenses\"\n  cp \"$BUILD/Python-3.14.3/LICENSE\" \"$LANGUAGE/licenses/Python-PSF.txt\"\n  tar -xzf \"$NODE_ARCHIVE\" -C \"$BUILD\"\n  ditto \"$BUILD/$NODE_ROOT\" \"$LANGUAGE/node\"\n  if [[ -n \"$LANGUAGE_CACHE\" ]]; then\n    LANGUAGE_CACHE_NEXT=\"$LANGUAGE_CACHE.next.$$\"\n    product_clean -rf \"$LANGUAGE_CACHE_NEXT\"\n    mkdir -p \"$LANGUAGE_CACHE_NEXT\"\n    ditto \"$LANGUAGE\" \"$LANGUAGE_CACHE_NEXT/runtime\"\n    printf '%s\\n' \"$TOOLCHAIN_FINGERPRINT\" > \"$LANGUAGE_CACHE_NEXT/fingerprint\"\n    product_clean -rf \"$LANGUAGE_CACHE\"\n    mv \"$LANGUAGE_CACHE_NEXT\" \"$LANGUAGE_CACHE\"\n  fi\nfi\nPYTHON=\"$LANGUAGE/python/bin/python3\"\n\"$PYTHON\" --version 2>&1 | grep -qx 'Python 3.14.3'\n\"$LANGUAGE/node/bin/node\" --version | grep -Fxq \"v$NODE_VERSION\"\nexport PATH=\"$LANGUAGE/node/bin:$PATH\"\n\nmkdir -p \"$LANGUAGE/bench/apps\" \"$LANGUAGE/bench/sites\" \"$LANGUAGE/lib\" \"$LANGUAGE/licenses\"\n[[ -f \"$LANGUAGE/licenses/Python-PSF.txt\" ]] \\\n  || { echo '厂家端Python许可证缓存不完整' >&2; exit 1; }\ncp \"$LANGUAGE/node/LICENSE\" \"$LANGUAGE/licenses/Node-MIT.txt\"\nfor app in frappe erpnext; do\n  rsync -a --delete --exclude .git --exclude node_modules \\\n    \"$ROOT/imported/$app/\" \"$LANGUAGE/bench/apps/$app/\"\ndone\n\"$PYTHON\" - \"$LANGUAGE/bench/apps/frappe/pyproject.toml\" <<'PY'\nfrom pathlib import Path\nimport sys\n\npath = Path(sys.argv[1])\nvalue = path.read_text(encoding=\"utf-8\")\nfor dependency in ('    \"PyMySQL==1.1.2\",\\n', '    \"mysqlclient==2.2.7\",\\n'):\n    if dependency not in value:\n        raise SystemExit(f\"厂家端 Frappe 数据库依赖行缺失：{dependency.strip()}\")\n    value = value.replace(dependency, \"\")\npath.write_text(value, encoding=\"utf-8\")\nPY\nexport PYTHONNOUSERSITE=1\n# Python依赖由上游pyproject和产品缓存决定；离线模式必须显式选择。\nunset PIP_NO_CACHE_DIR UV_NO_CACHE\nexport PIP_CACHE_DIR=\"$PACKAGE_CACHE/pip\"\nexport UV_CACHE_DIR=\"$PACKAGE_CACHE/uv\"\nmkdir -p \"$PIP_CACHE_DIR\" \"$UV_CACHE_DIR\"\nPIP_NETWORK_ARGS=()\ncase \"${TUYUFACTORY_OFFLINE:-false}\" in\n  true) PIP_NETWORK_ARGS+=(--no-index) ;;\n  false) ;;\n  *) echo 'TUYUFACTORY_OFFLINE只接受true或false' >&2; exit 1 ;;\nesac\n\"$PYTHON\" -m pip install --disable-pip-version-check --cache-dir \"$PIP_CACHE_DIR\" \\\n  \"${PIP_NETWORK_ARGS[@]}\" \"$LANGUAGE/bench/apps/frappe\"\n\"$PYTHON\" -m pip install --disable-pip-version-check --cache-dir \"$PIP_CACHE_DIR\" \\\n  \"${PIP_NETWORK_ARGS[@]}\" \"$LANGUAGE/bench/apps/erpnext\"\n\"$PYTHON\" -m pip freeze | LC_ALL=C sort > \"$LANGUAGE/licenses/python-packages.txt\"\n\"$LANGUAGE/node/bin/node\" \"$ROOT/scripts/build.mjs\" module assets \"$LANGUAGE\"\n\nPOSTGRES_CACHE_HIT=0\nif [[ -n \"$POSTGRES_CACHE\" && -f \"$POSTGRES_CACHE/fingerprint\" \\\n    && \"$(cat \"$POSTGRES_CACHE/fingerprint\")\" == \"$TOOLCHAIN_FINGERPRINT\" \\\n    && -x \"$POSTGRES_CACHE/runtime/bin/postgres\" ]]; then\n  find \"$POSTGRES\" -depth -delete\n  ditto \"$POSTGRES_CACHE/runtime\" \"$POSTGRES\"\n  POSTGRES_CACHE_HIT=1\nfi\nif [[ \"$POSTGRES_CACHE_HIT\" != 1 ]]; then\n  tar -xjf \"$POSTGRES_ARCHIVE\" -C \"$BUILD\"\n  (\n    cd \"$BUILD/postgresql-17.11\"\n    CPPFLAGS=\"-I$OPENSSL_PREFIX/include\" LDFLAGS=\"-L$OPENSSL_PREFIX/lib\" \\\n      ./configure --prefix=\"$POSTGRES\" --datadir=\"$POSTGRES/share/postgresql\" \\\n        --without-icu --without-readline --with-openssl\n    make -j\"$(sysctl -n hw.logicalcpu)\"\n    make install\n  )\n  mkdir -p \"$POSTGRES/licenses\"\n  cp \"$BUILD/postgresql-17.11/COPYRIGHT\" \"$POSTGRES/licenses/PostgreSQL-COPYRIGHT\"\n  if [[ -n \"$POSTGRES_CACHE\" ]]; then\n    POSTGRES_CACHE_NEXT=\"$POSTGRES_CACHE.next.$$\"\n    product_clean -rf \"$POSTGRES_CACHE_NEXT\"\n    mkdir -p \"$POSTGRES_CACHE_NEXT\"\n    ditto \"$POSTGRES\" \"$POSTGRES_CACHE_NEXT/runtime\"\n    printf '%s\\n' \"$TOOLCHAIN_FINGERPRINT\" > \"$POSTGRES_CACHE_NEXT/fingerprint\"\n    product_clean -rf \"$POSTGRES_CACHE\"\n    mv \"$POSTGRES_CACHE_NEXT\" \"$POSTGRES_CACHE\"\n  fi\nfi\n\nis_macho() { file -b \"$1\" | grep -q 'Mach-O'; }\nnative_candidates() {\n  find \"$1\" -type f \\( -perm -111 -o -name '*.dylib' -o -name '*.so' -o -name '*.so.*' \\) \\\n    | LC_ALL=C sort\n}\n\ncopy_dependency() {\n  local source_file=\"$1\" dependency=\"$2\" library_dir=\"$3\"\n  local source_dir dependency_path dependency_name resolved resolved_name\n  source_dir=\"$(dirname \"$source_file\")\"\n  case \"$dependency\" in\n    \"$OPENSSL_PREFIX\"/*|\"$LIBFFI_PREFIX\"/*|\"$PANGO_PREFIX\"/*) dependency_path=\"$dependency\" ;;\n    @loader_path/*) dependency_path=\"$source_dir/${dependency#@loader_path/}\" ;;\n    *) return ;;\n  esac\n  [[ -e \"$dependency_path\" ]] || { echo \"厂家端 Mach-O 依赖缺失：$dependency_path\" >&2; exit 1; }\n  dependency_name=\"$(basename \"$dependency_path\")\"\n  resolved=\"$(realpath \"$dependency_path\")\"\n  resolved_name=\"$(basename \"$resolved\")\"\n  if [[ ! -f \"$library_dir/$resolved_name\" ]]; then\n    cp \"$resolved\" \"$library_dir/$resolved_name\"\n    chmod u+w \"$library_dir/$resolved_name\"\n    while IFS= read -r nested; do copy_dependency \"$resolved\" \"$nested\" \"$library_dir\"; done \\\n      < <(otool -L \"$resolved\" | awk 'NR > 1 {print $1}')\n  fi\n  if [[ \"$dependency_name\" != \"$resolved_name\" && ! -e \"$library_dir/$dependency_name\" ]]; then\n    ln -s \"$resolved_name\" \"$library_dir/$dependency_name\"\n  fi\n}\n\nrelocate_tree() {\n  local tree=\"$1\" library_dir=\"$2\" file_path dependency relative target\n  mkdir -p \"$library_dir\"\n  while IFS= read -r file_path; do\n    is_macho \"$file_path\" || continue\n    while IFS= read -r dependency; do copy_dependency \"$file_path\" \"$dependency\" \"$library_dir\"; done \\\n      < <(otool -L \"$file_path\" | awk 'NR > 1 {print $1}')\n  done < <(native_candidates \"$tree\")\n\n  while IFS= read -r file_path; do\n    is_macho \"$file_path\" || continue\n    chmod u+w \"$file_path\"\n    while IFS= read -r dependency; do\n      case \"$dependency\" in\n        \"$OPENSSL_PREFIX\"/*|\"$LIBFFI_PREFIX\"/*|\"$PANGO_PREFIX\"/*)\n          relative=\"$($PYTHON -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' \\\n            \"$library_dir/$(basename \"$dependency\")\" \"$(dirname \"$file_path\")\")\"\n          install_name_tool -change \"$dependency\" \"@loader_path/$relative\" \"$file_path\"\n          ;;\n        \"$tree\"/*)\n          target=\"$dependency\"\n          relative=\"$($PYTHON -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' \\\n            \"$target\" \"$(dirname \"$file_path\")\")\"\n          install_name_tool -change \"$dependency\" \"@loader_path/$relative\" \"$file_path\"\n          ;;\n      esac\n    done < <(otool -L \"$file_path\" | awk 'NR > 1 {print $1}')\n    if [[ \"$file_path\" == *.dylib ]]; then\n      install_name_tool -id \"@loader_path/$(basename \"$file_path\")\" \"$file_path\"\n    fi\n    # 路径改写会使原动态库签名失效；先恢复构建签名，最终 App 再执行整包签名。\n    codesign --force --sign - \"$file_path\"\n  done < <(native_candidates \"$tree\")\n\n  if native_candidates \"$tree\" | while IFS= read -r file_path; do \\\n    if is_macho \"$file_path\"; then printf '%s\\n' \"$file_path\"; fi; \\\n    done | \\\n    while IFS= read -r file_path; do otool -L \"$file_path\"; done | \\\n    awk '/^[[:space:]]+\\// {print $1}' | \\\n    grep -F -e \"$OPENSSL_PREFIX/\" -e \"$LIBFFI_PREFIX/\" -e \"$PANGO_PREFIX/\" -e \"$WORK_ROOT/\" >/dev/null; then\n    echo \"厂家端 Mach-O 仍引用构建主机路径：$tree\" >&2\n    exit 1\n  fi\n}\n\nrelocate_tree \"$LANGUAGE\" \"$LANGUAGE/lib\"\nrelocate_tree \"$POSTGRES\" \"$POSTGRES/lib\"\n\"$LANGUAGE/node/bin/node\" \"$ROOT/scripts/build.mjs\" materialize \"$LANGUAGE\" \"$POSTGRES\" \"$DESTINATION\"\necho \"途遇厂家端 macOS 运行包构建通过：$DESTINATION\"\n","package":"#!/usr/bin/env bash\nset -euo pipefail\n\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nROOT=\"$(cd \"$SCRIPT_DIR/..\" && pwd)\"\nSOURCE_APP=\"${1:?usage: build.mjs shell package APP NATIVE_LIBRARY RUNTIME OUTPUT}\"\nNATIVE_LIBRARY=\"${2:?usage: build.mjs shell package APP NATIVE_LIBRARY RUNTIME OUTPUT}\"\nRUNTIME=\"${3:?usage: build.mjs shell package APP NATIVE_LIBRARY RUNTIME OUTPUT}\"\nOUTPUT=\"${4:?usage: build.mjs shell package APP NATIVE_LIBRARY RUNTIME OUTPUT}\"\nIDENTITY=\"${CODE_SIGN_IDENTITY:--}\"\n# 所有独立入口的工具临时状态归本产品target；宿主已交付的产品工作根继续归当前任务。\nPRODUCT_TEMP_SCRIPT=\"${BASH_SOURCE[0]}\"\nwhile [[ -L \"$PRODUCT_TEMP_SCRIPT\" ]]; do\n  PRODUCT_TEMP_LINK=\"$(readlink \"$PRODUCT_TEMP_SCRIPT\")\"\n  [[ \"$PRODUCT_TEMP_LINK\" == /* ]] || PRODUCT_TEMP_LINK=\"$(cd \"$(dirname \"$PRODUCT_TEMP_SCRIPT\")\" && pwd -P)/$PRODUCT_TEMP_LINK\"\n  PRODUCT_TEMP_SCRIPT=\"$PRODUCT_TEMP_LINK\"\ndone\nPRODUCT_TEMP_SOURCE=\"$(cd \"$(dirname \"$PRODUCT_TEMP_SCRIPT\")/..\" && pwd -P)\"\nPRODUCT_TARGET_TEMP_ROOT=\"$(\"${PRODUCT_NODE_BIN:-${NODE:-node}}\" \"$PRODUCT_TEMP_SOURCE/scripts/build.mjs\" temporary-root \"${PLATFORM:-${platform:-}}\" 'host-macos')\" || exit 1\nif [[ -z \"${PRODUCT_WORK_DIR:-}\" && \"${TMPDIR:-}\" != \"$PRODUCT_TEMP_SOURCE/target/\"* ]]; then\n  export TMPDIR=\"$PRODUCT_TARGET_TEMP_ROOT/\"\nfi\nTUYUFACTORY_WORK_DIR=\"${TUYUFACTORY_WORK_DIR:-${TMPDIR:-$PRODUCT_TARGET_TEMP_ROOT}/tuyufactory/host/macos}\"\n\n[[ \"$(uname -s)\" == Darwin && \"$(uname -m)\" == arm64 ]] \\\n  || { echo '厂家端 macOS 包只能在真实 macOS 主机生成' >&2; exit 1; }\n[[ -d \"$SOURCE_APP\" && -f \"$SOURCE_APP/Contents/Info.plist\" ]] \\\n  || { echo \"厂家端 Flutter App 不存在：$SOURCE_APP\" >&2; exit 1; }\n[[ -f \"$NATIVE_LIBRARY\" ]] || { echo \"厂家端原生库不存在：$NATIVE_LIBRARY\" >&2; exit 1; }\n[[ -f \"$RUNTIME/business/runtime.lock.json\" && -x \"$RUNTIME/postgresql/bin/postgres\" ]] \\\n  || { echo \"厂家端独立运行包不存在：$RUNTIME\" >&2; exit 1; }\n[[ ! -e \"$OUTPUT\" ]] || { echo \"厂家端 App 目标已经存在：$OUTPUT\" >&2; exit 1; }\n\n# 主机组装入口不能接收client壳；写入前验证准确工作根和新目标。\n[[ \"$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$SOURCE_APP/Contents/Info.plist\")\" == com.tuyufactory ]] \\\n  || { echo '厂家主机打包入口拒绝分机安装身份' >&2; exit 1; }\nnode --input-type=module - \"$SCRIPT_DIR/build.mjs\" \"$TUYUFACTORY_WORK_DIR\" \"$OUTPUT\" \"$SOURCE_APP\" \"$RUNTIME\" <<'NODE_PACKAGE'\nimport { pathToFileURL } from 'node:url';\nimport { lstatSync } from 'node:fs';\nimport { join } from 'node:path';\nconst {packageDestination, packageInside, verifyTree} = await import(pathToFileURL(process.argv[2]));\npackageDestination(process.argv[3], process.argv[4], 'host', 'macos');\nfor (const input of process.argv.slice(5)) {\n  if (lstatSync(input).isSymbolicLink() || packageInside(input, process.argv[4]) || packageInside(process.argv[4], input) || input === process.argv[4]) throw new Error('厂家打包输入与输出交叉');\n  verifyTree(input);\n}\nfor (const name of ['Contents', 'Contents/Frameworks', 'Contents/Resources']) {\n  const path = join(process.argv[5], name);\n  try { if (lstatSync(path).isSymbolicLink()) throw new Error('厂家包写入父目录不得为链接'); }\n  catch (error) { if (error.code !== 'ENOENT') throw error; }\n}\nNODE_PACKAGE\n\n# 排他创建后才拥有清理权；签名和验真失败不能留下半包。\nOUTPUT_OWNED=0\nENTITLEMENTS_OWNED=0\nPACKAGE_COMPLETE=0\ncleanup_package() {\n  if [[ \"$ENTITLEMENTS_OWNED\" == 1 ]]; then /bin/rm -f \"$APP_ENTITLEMENTS\"; fi\n  if [[ \"$OUTPUT_OWNED\" == 1 && \"$PACKAGE_COMPLETE\" != 1 ]]; then find \"$OUTPUT\" -depth -delete; fi\n}\ntrap cleanup_package EXIT\nmkdir \"$OUTPUT\"\nOUTPUT_OWNED=1\nditto \"$SOURCE_APP\" \"$OUTPUT\"\nmkdir -p \"$OUTPUT/Contents/Frameworks\" \"$OUTPUT/Contents/Resources\"\ncp \"$NATIVE_LIBRARY\" \"$OUTPUT/Contents/Frameworks/libtuyufactory_native.dylib\"\ninstall_name_tool -id '@rpath/libtuyufactory_native.dylib' \\\n  \"$OUTPUT/Contents/Frameworks/libtuyufactory_native.dylib\"\nditto \"$RUNTIME\" \"$OUTPUT/Contents/Resources/runtime\"\n\n# 先签全部嵌套 Mach-O，再签最外层 App；PostgreSQL 子进程不能继承 App Sandbox。\nsign_nested_code() {\n  local file_path=\"$1\" signing_output\n  if ! signing_output=\"$(codesign --force --sign \"$IDENTITY\" --timestamp=none \"$file_path\" 2>&1)\"; then\n    printf '%s\\n' \"$signing_output\" >&2\n    return 1\n  fi\n}\nwhile IFS= read -r file_path; do\n  if file -b \"$file_path\" | grep -q 'Mach-O'; then\n    sign_nested_code \"$file_path\"\n  fi\ndone < <(find \"$OUTPUT/Contents/Resources/runtime\" \"$OUTPUT/Contents/Frameworks\" \\\n  -type f \\( -perm -111 -o -name '*.dylib' -o -name '*.so' -o -name '*.node' \\) \\\n  -print | LC_ALL=C sort)\n\n# 权限文件随统一 Flutter 工程定位，主机打包不读取分机入口或重复资源。\nAPP_ENTITLEMENTS=\"$ROOT/app/macos/Runner/Release.entitlements\"\nif [[ \"$IDENTITY\" == - ]]; then\n  APP_ENTITLEMENTS=\"$TUYUFACTORY_WORK_DIR/adhoc.entitlements\"\n  node --input-type=module - \"$ROOT/app/macos/Runner/Release.entitlements\" \"$APP_ENTITLEMENTS\" <<'NODE_ENTITLEMENTS'\nimport { copyFileSync, constants } from 'node:fs';\ncopyFileSync(process.argv[2], process.argv[3], constants.COPYFILE_EXCL);\nNODE_ENTITLEMENTS\n  ENTITLEMENTS_OWNED=1\n  /usr/libexec/PlistBuddy -c \\\n    'Add :com.apple.security.cs.disable-library-validation bool true' \\\n    \"$APP_ENTITLEMENTS\"\nfi\n# 签名前使基础名称与最终物理包名一致，用户名称由包内语言资源提供。\nbundle_name=\"$(basename \"$OUTPUT\" .app)\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleDisplayName $bundle_name\" \"$OUTPUT/Contents/Info.plist\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName $bundle_name\" \"$OUTPUT/Contents/Info.plist\"\ncodesign --force --sign \"$IDENTITY\" --timestamp=none --options runtime \\\n  --entitlements \"$APP_ENTITLEMENTS\" \"$OUTPUT\"\n\"${PRODUCT_NODE_BIN:-${NODE:-node}}\" \"$ROOT/scripts/build.mjs\" shell verify-macos \"$OUTPUT\"\nPACKAGE_COMPLETE=1\necho \"已生成途遇厂家端 macOS App：$OUTPUT\"\n","verify-macos":"#!/usr/bin/env bash\nset -euo pipefail\n\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nAPP=\"${1:?usage: build.mjs shell verify-macos APP}\"\nRUNTIME=\"$APP/Contents/Resources/runtime\"\nNATIVE=\"$APP/Contents/Frameworks/libtuyufactory_native.dylib\"\nEXECUTABLE=\"$APP/Contents/MacOS/TuyuFactory\"\n\nfor path in \"$EXECUTABLE\" \"$NATIVE\" \"$RUNTIME/postgresql/bin/postgres\" \\\n  \"$RUNTIME/business/python/bin/python3\" \"$RUNTIME/business/node/bin/node\"; do\n  [[ -f \"$path\" ]] || { echo \"厂家端 App 缺少运行文件：$path\" >&2; exit 1; }\n  [[ \"$(lipo -archs \"$path\")\" == arm64 ]] \\\n    || { echo \"厂家端 App 不是纯 ARM64：$path\" >&2; exit 1; }\ndone\n[[ \"$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$APP/Contents/Info.plist\")\" \\\n    == com.tuyufactory ]] || { echo '厂家端 Bundle ID 无效' >&2; exit 1; }\nnm -gU \"$NATIVE\" | grep -q '_tuyufactory_start$'\nnm -gU \"$NATIVE\" | grep -q '_tuyufactory_initialize_administrator$'\nnode \"$SCRIPT_DIR/build.mjs\" verify \"$RUNTIME\"\ncodesign --verify --deep --strict \"$APP\"\n# 同一整包验证器覆盖完整SDK、Flutter及主机组件，不只检查几个主程序。\nnode \"${PRODUCT_NODE_BIN:-${NODE:-node}}\" \"$SCRIPT_DIR/build.mjs\" verify --package \"$APP\" host macos signed\nif codesign -d --entitlements :- \"$APP\" 2>&1 | grep -q 'com.apple.security.app-sandbox'; then\n  echo '厂家端直接分发 App 不得启用 App Sandbox' >&2\n  exit 1\nfi\necho \"途遇厂家端 macOS App 验证通过：$APP\"\n"});
@@ -941,11 +920,11 @@ export async function runOwnedModule(name,args,environment=process.env){return r
 
 async function runCLI(){
  const [operation,platform,flag,work]=process.argv.slice(2);
- if(operation==='execute'&&process.env.PRODUCT_RESOURCE_FD!=='4'){if(flag!=='--work'||work!==fixedWork('build/'+platform))fail('平台编译现场不符');return withFixedWork('build/'+platform,()=>runCommand(),{environment:process.env,retain:process.env.PRODUCT_HOST_FD==='3'});}
+ if(operation==='execute'){if(flag!=='--work'||work!==fixedWork('build/'+platform))fail('平台编译现场不符');return withFixedWork('build/'+platform,()=>runCommand(),{environment:process.env});}
  if(operation==='execute')return runCommand();
  if(['resources','prepare','build'].includes(operation)&&flag==='--work'){
   checkWork(work);
-  return withFixedWork(taskScope(work),()=>runCommand(),{environment:process.env,retain:process.env.PRODUCT_HOST_FD==='3'||process.env.PRODUCT_RESOURCE_FD==='4'});
+  return withFixedWork(taskScope(work),()=>runCommand(),{environment:process.env});
  }
  return runCommand();
 }
@@ -979,14 +958,11 @@ async function runCommand(){
   let input='';for await(const chunk of process.stdin){input+=chunk;if(Buffer.byteLength(input)>2*1024*1024)fail('公开输入超限');}
   const request=input?JSON.parse(input):{},options={environment:process.env,signal:cancellation.signal,offline:extra.includes('--offline')};
   let result;
-  if(command==='execute'&&process.env.PRODUCT_RESOURCE_FD==='4'){
-   if(process.env.PRODUCT_RESOURCE_FD!=='4')fail('编译资源供给通道缺失');
-   result=await execute(platform,work,request,options);
-  }else if(command==='execute'){
+  if(command==='execute'){
    const {bootstrapNode}=resourceInternals;const node=await bootstrapNode(work,options);
    if(createHash('sha256').update(readFileSync(process.execPath)).digest('hex')!==createHash('sha256').update(readFileSync(node.path)).digest('hex')){
-    const environment=Object.fromEntries(['HOME','USER','LOGNAME','LANG','LC_ALL','PRODUCT_TOOL_ROOT','PRODUCT_DEPENDENCY_ROOT','PRODUCT_HOST_FD','PRODUCT_WORK_LEASE'].filter(k=>typeof process.env[k]==='string').map(k=>[k,process.env[k]]));
-    result=JSON.parse((await runBuildProcess(node.path,[fileURLToPath(import.meta.url),command,platform,option,work,...extra],workEnvironment(environment),root,{capture:true,streamError:true,input:JSON.stringify(request),signal:cancellation.signal,passHost:environment.PRODUCT_HOST_FD==='3'})).stdout);
+    const environment=Object.fromEntries(['HOME','USER','LOGNAME','LANG','LC_ALL','PRODUCT_WORK_LEASE'].filter(k=>typeof process.env[k]==='string').map(k=>[k,process.env[k]]));
+    result=JSON.parse((await runBuildProcess(node.path,[fileURLToPath(import.meta.url),command,platform,option,work,...extra],workEnvironment(environment),root,{capture:true,streamError:true,input:JSON.stringify(request),signal:cancellation.signal})).stdout);
    }else result=await execute(platform,work,request,options);
   }else if(command==='resources')result=await resourceInternals.resources(platform,work,request,options);
   else result=await executions.run({signal:cancellation.signal},()=>command==='prepare'?prepare(platform,work,request,process.env):build(platform,work,request,process.env));
@@ -1104,26 +1080,7 @@ test('Android实际Gradle接收完整版本定义，缺字段和编译失败阻�
 }
 
 // 供给模式只接收所属任务资源，通道失败不切换为独立准备。
-export function createResourceSupplyClient(stream,signal){
- let buffer='',sequence=0,pending=null,closed=false;
- const reject=message=>{closed=true;if(pending){clearTimeout(pending.timer);pending.reject(Error(message));pending=null;}stream.destroy();};
- const abort=()=>reject('资源供给已取消');
- signal?.addEventListener('abort',abort,{once:true});
- stream.setEncoding?.('utf8');
- stream.on('data',chunk=>{buffer+=chunk.toString();if(Buffer.byteLength(buffer)>2*1024**2)return reject('资源供给回执超限');
-  let end;while((end=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,end);buffer=buffer.slice(end+1);
-   try{const reply=JSON.parse(line);if(!pending||reply.id!==pending.id||Object.keys(reply).sort().join(',')!==(reply.ok===true?'id,ok,value':'error,id,ok'))throw Error();
-    const entry=pending;pending=null;clearTimeout(entry.timer);if(reply.ok!==true){entry.reject(Error(reply.error));reject('资源供给失败');return;}entry.resolve(reply.value);
-   }catch{reject('资源供给帧或请求身份无效');return;}
-  }
- });
- stream.on('error',()=>reject('资源供给通道失败'));stream.on('end',()=>reject('资源供给通道中断'));stream.on('close',()=>reject('资源供给通道中断'));
- const request=value=>new Promise((resolve,rejectPromise)=>{if(closed||pending||signal?.aborted)return rejectPromise(Error('资源供给不可用，禁止独立下载'));
-  const id=String(++sequence),timer=setTimeout(()=>reject('资源供给超时'),7200000);pending={id,timer,resolve,reject:rejectPromise};
-  stream.write(JSON.stringify({...value,id,operation:'prepare'})+'\n');
- });
- request.close=()=>{signal?.removeEventListener('abort',abort);reject('资源供给已关闭');};return request;
-}
+
 
 // 本仓本机编译正文只有此处一份；不生成独立编译脚本。
 
@@ -1158,7 +1115,7 @@ async function rm(path,options) {
  return removeResourcePath(path,options);
 }
 function runResourceProcess(command,args,{signal,maxBuffer=8*1024**2,timeout=3600000,encoding='utf8',quietOutput=false,...options}={}) {
- const supplied=resourceSupplies.getStore();if(supplied&&!supplied.preparingTool){if(typeof supplied.runCommand!=='function')fail('供给未交付执行能力');return supplied.runCommand(command,args,{...options,maxBuffer,timeout,encoding,quietOutput,signal});}
+
 
  signal?.throwIfAborted();
  if(!Number.isSafeInteger(maxBuffer)||maxBuffer<=0||!Number.isSafeInteger(timeout)||timeout<=0)throw Error('资源进程边界参数无效');
@@ -1280,7 +1237,7 @@ async function resourceWork(work) {
  checkScratchPath(path);return directory(join(path,'resource-pending'),true);
 }
 async function acquireArchive(entry,{store,work,optional,offline=false,fetcher=fetch,signal,maxBytes=4*1024**3}={}){
- const supplied=resourceSupplies.getStore();if(supplied)return supplied.acquireOriginal(entry,{kind:store===join(supplied.toolRoot,'archives')?'tool':'dependency',offline,signal,maxBytes});
+
  const url=checkedURL(entry.url);digestSpec(entry);await directory(store,true);const coordinate=hash(JSON.stringify([url,entry.sha256||entry.integrity]));const target=join(store,coordinate+'.blob');
  const check=async path=>{await regular(path);const b=await readFile(path);if(!b.length||b.length>maxBytes)fail('原件大小超限');verifyBytes(b,entry);return path;};
  if(await stat(target))return check(target);
@@ -2167,7 +2124,7 @@ const appleBundleTools = new Set([
 ]);
 async function verifyAppleTools(library,{names=['xcodebuild'],signal,run=exec,environment=process.env}={}){
   const wanted=library.tools.find(tool=>tool.id==='xcode');if(!wanted||!Array.isArray(names)||names.some(name=>!appleBundleTools.has(name)&&!Object.hasOwn(appleSystemTools,name)))fail('Apple工具需求无效');
-  const supplied=resourceSupplies.getStore();if(supplied)return supplied.acquireApple({...supplyRequirements().apple,names});
+
   const env=cleanEnvironment(environment),developerDirectory=(await run('/usr/bin/xcode-select',['-p'],{env,signal})).stdout.trim();await directory(developerDirectory);
   const tools={};for(const name of names){const path=appleSystemTools[name]||(name==='xcodebuild'?join(developerDirectory,'usr/bin/xcodebuild'):(await run('/usr/bin/xcrun',['--find',name],{env:{...env,DEVELOPER_DIR:developerDirectory},signal})).stdout.trim());await regular(path);tools[name]=await realpath(path);}
   return {developerDirectory,version:wanted.version,tools};
@@ -2195,18 +2152,19 @@ async function productFoundation(library,verify,{bootstrap=false,id}={}){
 }
 async function prepareSourceDependencies({library,tool,pending,signal,fetcher,options={}}){const result=new Map();for(const entry of tool.dependencies||[])result.set(entry.name,await acquireArchive(entry,{work:library.work,store:join(library.root,'archives'),optional:options.optionalDependencies,offline:options.offline,signal,fetcher}));return result;}
 async function commitCandidate(pending,target,{signal,verify}={}){
- const supplied=resourceSupplies.getStore();if(supplied){if(typeof supplied.publishCandidate!=='function')fail('供给未交付提交能力');return supplied.publishCandidate(pending,target);}
+
 
  // 下载与编译已完成后才取得短锁；等待可取消，已有对象永不覆盖。
  const lock=target+'.lock';let handle;for(let n=0;n<500;n++){signal?.throwIfAborted();try{handle=await open(lock,'wx',0o600);break;}catch(e){if(e.code!=='EEXIST')throw e;await new Promise(r=>setTimeout(r,20));}}if(!handle)fail('原件提交锁等待超限');
  try{signal?.throwIfAborted();if(await stat(target)){if(verify)await verify(target);}else await rename(pending,target);}finally{await handle.close();await rm(lock);}
 }
+// 准备产物身份与使用验收由本产品定义，供应端不解释组件布局。
+function toolSupplyKey(tool){const archive=toolArchive(tool);if(tool.id==='node')return archive.sha256;return archive.sha256+'-'+objectRecipe(tool);}
+
+
+
 async function installTool(library,tool,options,visiting=new Set()){
- const supplied=resourceSupplies.getStore();if(supplied&&!supplied.preparingTool){
-  if(library.installed.has(tool.id))return library.installed.get(tool.id);
-  const value=tool.id==='xcode'?await supplied.acquireApple({...supplyRequirements().apple,names:['xcodebuild']}).then(apple=>({path:apple.tools.xcodebuild,version:tool.version})):await supplied.acquireTool(supplyRequirements().tools.find(item=>item.id===tool.id));
-  library.installed.set(tool.id,value);return value;
- }
+
 
  if(library.installed.has(tool.id))return library.installed.get(tool.id);if(visiting.has(tool.id))fail('工具声明循环：'+tool.id);visiting=new Set([...visiting,tool.id]);const archive=toolArchive(tool);
  if(tool.id==='xcode'){const apple=await verifyAppleTools(library,{environment:cleanEnvironment(options.environment),signal:options.signal});const value={path:apple.tools.xcodebuild,version:tool.version};library.installed.set(tool.id,value);return value;}
@@ -2422,8 +2380,8 @@ async function bootstrapNode(work,options={}) {
  const store=options.storeRoot||join(homedir(),'.local/share/product-resources');
  if(inside(root,store)||inside(store,root)||inside(work,store)||inside(store,work)||store===work)fail('启动原件库边界交叉');
  const library={root:join(store,'tools'),work,tools:toolDefinitions,installed:new Map()};await directory(library.root,true);
- const context={environment,offline:false,fetcher:fetch,...options,library,optionalTools:environment.PRODUCT_TOOL_ROOT,
-  optionalDependencies:environment.PRODUCT_DEPENDENCY_ROOT?join(environment.PRODUCT_DEPENDENCY_ROOT,'objects'):undefined};
+ const context={environment,offline:false,fetcher:fetch,...options,library,optionalTools:undefined,
+  optionalDependencies:undefined};
  return installTool(library,toolDefinitions.find(x=>x.id==='node'),context);
 }
 
@@ -2433,8 +2391,8 @@ async function processResources(work,options={}) {
  const store=options.storeRoot||join(homedir(),'.local/share/product-resources');
  if(inside(root,store)||inside(store,root)||inside(work,store)||inside(store,work))fail('操作原件库边界交叉');
  const library={root:join(store,'tools'),work,tools:toolDefinitions,installed:new Map()};await directory(library.root,true);
- const context={environment,offline:false,fetcher:fetch,...options,library,optionalTools:environment.PRODUCT_TOOL_ROOT,
-  optionalDependencies:environment.PRODUCT_DEPENDENCY_ROOT?join(environment.PRODUCT_DEPENDENCY_ROOT,'objects'):undefined};
+ const context={environment,offline:false,fetcher:fetch,...options,library,optionalTools:undefined,
+  optionalDependencies:undefined};
  for(const id of ['node','xcode','posix','bash','grep','sed'])await installTool(library,toolDefinitions.find(tool=>tool.id===id),context);
  const foundation=await productFoundation(library,async(_,tool)=>library.installed.get(tool.id));
  const apple=await verifyAppleTools(library,{names:['codesign'],signal:options.signal,environment:cleanEnvironment(environment)});
@@ -2442,19 +2400,12 @@ async function processResources(work,options={}) {
   plutil:foundation.tools.plutil,environment:{...cleanEnvironment(environment),PATH:foundation.path,DEVELOPER_DIR:apple.developerDirectory}};
 }
 
-async function resources(platform,work,previous={},options={}){
- if(options.supply){const receipt=await options.supply(previous);if(receipt?.run_id!==previous.run_id)fail('资源供给任务身份不符');const owner=buildApi;owner.resourceEnvironment(platform,work,receipt,options.environment||{});return receipt;}
- return materializeResources(platform,work,previous,options);
-}
-async function prepareResourceSupply(platform,work,previous,options){
- if(!options||typeof options.acquireOriginal!=='function'||!options.toolRoot||!options.dependencyRoot)fail('供给准备缺少公开能力');
- const receipt=await resourceSupplies.run({...options,work},()=>materializeResources(platform,work,previous,options));
- receipt.environment??={};receipt.environment["TUYUFACTORY_RESOURCE_MODE"]='provided';return receipt;
-}
+async function resources(platform,work,previous={},options={}){return resourceSupplies.run({work},()=>materializeResources(platform,work,previous,options));}
+async function prepareResourceSupply(platform,work,previous,options){return resources(platform,work,previous,options);}
 async function materializeResources(platform,work,previous={},options={}){
  const owner=buildApi;owner.checkWork(work);const request=()=>owner.requirements(platform,work);const requirement=request(),environment=options.environment||process.env;
  if(previous.schema!==undefined&&(previous.schema!==1||previous.product_id!==requirement.product_id||previous.platform!==platform||previous.work!==work))fail('资源请求身份无效');options={environment,fetcher:fetch,offline:false,...options};options.signal?.throwIfAborted();
- const store=options.storeRoot||join(homedir(),'.local/share/product-resources'),optionalTools=options.toolRoot||environment.PRODUCT_TOOL_ROOT,optionalDependencies=options.dependencyRoot?join(options.dependencyRoot,'objects'):environment.PRODUCT_DEPENDENCY_ROOT?join(environment.PRODUCT_DEPENDENCY_ROOT,'objects'):undefined;
+ const store=options.storeRoot||join(homedir(),'.local/share/product-resources'),optionalTools=options.toolRoot,optionalDependencies=options.dependencyRoot?join(options.dependencyRoot,'objects'):undefined;
  await directory(store,true);if(inside(root,store)||inside(store,root)||inside(work,store)||inside(store,work)||store===work)fail('原件库与源码或工作区交叉');
  // tools承载工具发行件/编译输入，rely承载产品依赖原件；不把可写任务缓存混入任一原件库。
  const library={root:options.toolRoot||join(store,'tools'),work,tools:toolDefinitions,requested:requirement.tools,installed:new Map(),androidPlatforms:androidPlatformDefinitions};await directory(library.root,true);options={...options,platform,optionalTools,optionalDependencies,library,dependencyRoot:options.dependencyRoot||join(store,'rely'),sources:requirement.sources};
@@ -2477,24 +2428,12 @@ async function materializeResources(platform,work,previous={},options={}){
 
 // 公开声明与候选配方；供给对象的领取、提交及删除只由调度方实现。
 function supplyRequirements(){
- const wanted=toolDefinitions.filter(tool=>tool.id!=='xcode').map(tool=>{const archive=toolArchive(tool);return {...tool,archive,slots:[...new Set([archive?.executable,...(tool.slots||[])].filter(Boolean))]};});
+ const wanted=toolDefinitions.filter(tool=>tool.id!=='xcode').map(tool=>{const archive=toolArchive(tool);return {...tool,archive,cache_key:toolSupplyKey(tool),slots:[...new Set([archive?.executable,...(tool.slots||[])].filter(Boolean))]};});
  const xcode=toolDefinitions.find(tool=>tool.id==='xcode');
  return {tools:wanted,apple:{version:xcode.version,source:xcode.source,names:[...new Set([...Object.keys(appleSystemTools),...appleBundleTools])]}};
 }
 function assertWorkQuiescent(work){for(const pid of supplyGroups.get(work)||[])try{process.kill(-pid,0);fail('资源工具退出未确认');}catch(error){if(error.code!=='ESRCH')throw error;}if(retainedResourcePath(work))fail('资源工具退出未确认');}
-async function prepareToolSupply(tool,{original,payload,work,signal,offline,acquireOriginal,acquireTool,acquireApple,publishCandidate,environment,finalPayload}){
- const at=await fixedScratch(join(work,'.tool-recipe-'+tool.id+'-'+randomUUID()));
- const library={root:at,work,tools:toolDefinitions,installed:new Map(),requested:[],androidPlatforms:typeof androidPlatformDefinitions==='undefined'?[]:androidPlatformDefinitions};
- const context={work,toolRoot:at,dependencyRoot:join(work,'dependencies'),acquireOriginal,acquireTool,acquireApple,publishCandidate,preparingTool:true};
- try{return await resourceSupplies.run(context,async()=>{
-  const definition=toolDefinitions.find(entry=>entry.id===tool.id);if(!definition)fail('工具配方未声明');
-  const ids=[...(definition.requires||[]),...(!['node','posix'].includes(tool.id)?['posix',...(['bash','grep','sed'].includes(tool.id)?[]:['bash','grep','sed'])]:[])];
-  for(const id of new Set(ids)){if(id==='xcode'){const apple=await acquireApple({...supplyRequirements().apple,names:['xcodebuild']});library.installed.set(id,{path:apple.tools.xcodebuild,version:toolDefinitions.find(t=>t.id===id).version});}else{const entry=supplyRequirements().tools.find(t=>t.id===id);if(!entry)fail('工具前置未声明');library.installed.set(id,await acquireTool(entry));}}
-  const value=await installTool(library,definition,{library,signal,offline,environment,finalPayload,dependencyRoot:context.dependencyRoot});
-  const executable=toolArchive(definition).executable,built=value.path.slice(0,-executable.length-1);await chmod(built,0o700);await rm(payload,{recursive:true,force:true});await rename(built,payload);
-  return {schema:1,id:tool.id,version:tool.version,payload,original};
- });}finally{assertWorkQuiescent(work);await rm(at,{recursive:true,force:true});}
-}
+
 
 // 正式实现结束；仅直接使用 node --test 执行本文件时注册以下回归。
 if (process.env.NODE_TEST_CONTEXT && process.argv.length === 2 && !process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value)) && process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href) {
@@ -2756,13 +2695,7 @@ test('资源下载候选只属于当前产品target现场，永久库不接收�
 // 同文件回归只准备夹具归档，验证候选职责和失败清理，不下载或运行产品编译。
 if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===import.meta.filename){
  const {test}=await import('node:test'),{default:assert}=await import('node:assert/strict'),{execFileSync}=await import('node:child_process'),fs=await import('node:fs'),{withFixedWork}=Promise.resolve(targetInternals);
- for(const failure of [false,true])test('编译供给候选归属与失败收尾：'+failure,()=>withFixedWork('test',async work=>{
-  const tool=supplyRequirements().tools.find(tool=>tool.id==='node'),base=join(work,'fixture');await mkdir(join(base,tool.archive.root,'bin'),{recursive:true});await writeFile(join(base,tool.archive.root,'bin/node'),'#!/bin/sh\nexit 0\n',{mode:0o755});
-  const archive=join(work,'fixture.tgz');execFileSync('/usr/bin/tar',['-czf',archive,'-C',base,tool.archive.root]);const payload=join(work,'payload');await mkdir(payload);let acquired=0,committed=0;
-  const options={original:archive,payload,work,environment:{HOME:work},acquireOriginal:async entry=>{acquired++;assert.equal(entry.url,tool.archive.url);if(failure)throw Error('原件缺失');return archive;},acquireTool:()=>assert.fail('Node无前置工具'),acquireApple:()=>assert.fail('Node不需要Apple'),publishCandidate:async(candidate,target)=>{assert.ok(candidate.startsWith(work+'/')&&target.startsWith(work+'/'));committed++;await mkdir(dirname(target),{recursive:true});await rename(candidate,target);}};
-  if(failure)await assert.rejects(prepareToolSupply(tool,options),/原件缺失/);else{const result=await prepareToolSupply(tool,options);assert.equal(result.payload,payload);assert.ok((await lstat(join(payload,'bin/node'))).mode&0o111);assert.equal(committed,1);}
-  assert.equal(acquired,1);assert.equal((await readdir(work)).some(name=>name.startsWith('.tool-recipe-')),false);
- }));
+
 }
 
 // 使用真实本轮目录验证解析器取得、复用及失败清场，不触碰共享工具库。
@@ -2771,22 +2704,7 @@ if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===imp
  const {mkdtemp,mkdir,writeFile,readdir,rm,lstat}=await import('node:fs/promises');
  const {gzipSync}=await import('node:zlib');
  const tar=entries=>{const blocks=[];for(const [name,body]of entries){const bytes=Buffer.from(body),header=Buffer.alloc(512);header.write(name,0,100);header.write('0000644\0',100);header.write('0000000\0',108);header.write('0000000\0',116);header.write(bytes.length.toString(8).padStart(11,'0')+'\0',124);header.write('00000000000\0',136);header.fill(32,148,156);header.write('0',156);header.write('ustar\0',257);header.write('00',263);header.write([...header].reduce((sum,value)=>sum+value,0).toString(8).padStart(6,'0')+'\0 ',148);blocks.push(header,bytes,Buffer.alloc((512-bytes.length%512)%512));}return gzipSync(Buffer.concat([...blocks,Buffer.alloc(1024)]));};
- test('解析器仅在本任务目录物化并复用，离线缺件失败',async t=>{
-  await mkdir(fixedWork('test'),{recursive:true});const work=await mkdtemp(join(fixedWork('test'),'parser-task-'));t.after(()=>rm(work,{recursive:true,force:true}));
-  const library={root:join(work,'library'),work,installed:new Map()};await mkdir(library.root);
-  const input=join(work,'parser.tgz'),broken=join(work,'broken.tgz');
-  await writeFile(input,tar([['package/package.json','{"main":"index.js"}'],['package/index.js','module.exports={parse(text){return {text}}};']]));
-  await writeFile(broken,tar([['../escape','invalid']]));
-  let acquired=0;const supply={toolRoot:library.root,acquireOriginal:async()=>{acquired++;return input;},publishCandidate:()=>assert.fail('解析器不得发布共享目录')};
-  const options={library,offline:true};
-  assert.deepEqual((await resourceSupplies.run(supply,()=>parser('yaml',options)))('first'),{text:'first'});
-  assert.deepEqual((await resourceSupplies.run(supply,()=>parser('yaml',options)))('again'),{text:'again'});
-  assert.equal(acquired,1);await assert.rejects(lstat(join(library.root,'parsers')),{code:'ENOENT'});
-  const local=join(work,'resource-pending','parsers');assert.equal((await readdir(local)).length,1);await rm(local,{recursive:true});
-  await assert.rejects(resourceSupplies.run({...supply,acquireOriginal:async()=>broken},()=>parser('yaml',options)),/越界|非法/);
-  assert.deepEqual(await readdir(local),[]);
-  await assert.rejects(resourceSupplies.run({...supply,acquireOriginal:async()=>{throw Error('离线缺原件');}},()=>parser('yaml',options)),/离线缺原件/);
- });
+
  test('锁定Git bundle仅在任务内检出，离线缺原件失败',async t=>{
   const {execFileSync}=await import('node:child_process'),{mkdtemp,mkdir,writeFile,readFile,readdir,rm}=await import('node:fs/promises');
   await mkdir(fixedWork('test'),{recursive:true});const work=await mkdtemp(join(fixedWork('test'),'git-task-'));t.after(()=>rm(work,{recursive:true,force:true}));
@@ -2811,36 +2729,13 @@ if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===imp
   assert.equal(await stat(target),null);
  });
 
- test('Pod spec与源码仅在任务内物化，离线复用与失败清场保持锁定',async t=>{
-  const {mkdtemp,mkdir,writeFile,readFile,rm}=await import('node:fs/promises');
-  const {spawnSync}=await import('node:child_process');
-  await mkdir(fixedWork('test'),{recursive:true});const work=await mkdtemp(join(fixedWork('test'),'pod-task-'));t.after(()=>rm(work,{recursive:true,force:true}));
-  const checksum='a'.repeat(40),sourceBytes=tar([['source.txt','locked-source']]),sourceUrl='https://example.invalid/Example.tgz';
-  const spec={name:'Example',version:'1.0.0',source:{http:sourceUrl,sha256:hash(sourceBytes)}};
-  const lock={PODS:['Example (1.0.0)'],'SPEC CHECKSUMS':{Example:checksum}};
-  const parserArchive=join(work,'parser.tgz'),sourceArchive=join(work,'source.tgz'),lockfile=join(work,'Podfile.lock');
-  await writeFile(parserArchive,tar([['package/package.json','{"main":"index.js"}'],['package/index.js','module.exports={parse(){return '+JSON.stringify(lock)+';}};']]));
-  await writeFile(sourceArchive,sourceBytes);await writeFile(lockfile,'PODS:\n  - Example (1.0.0)\nSPEC CHECKSUMS:\n  Example: '+checksum+'\n');
-  const ruby=join(work,'ruby'),pod=join(work,'cocoapods/bin/pod');await mkdir(dirname(pod),{recursive:true});await mkdir(join(work,'cocoapods/gems'));
-  await writeFile(ruby,'#!'+process.execPath+'\nprocess.stdout.write('+JSON.stringify(checksum)+');\n',{mode:0o755});await writeFile(pod,'fixture',{mode:0o755});
-  const library={root:join(work,'library'),work,installed:new Map([['ruby',{path:ruby}],['cocoapods',{path:pod}]]),tools:[{id:'cocoapods',version:'1.17.0'}]};await mkdir(library.root);
-  let originals=0,requests=0;
-  const supply={toolRoot:library.root,acquireOriginal:async entry=>{originals++;return entry.url===parserDefinitions.yaml.url?parserArchive:entry.url===sourceUrl?sourceArchive:assert.fail('未知原件');},publishCandidate:()=>assert.fail('Pod不得提交共享目录'),runCommand:async(command,args,options)=>{assert.equal(command,ruby);const result=spawnSync(command,args,{env:options.env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);return {stdout:result.stdout,stderr:result.stderr};}};
-  const fetcher=async url=>{requests++;assert.match(url,/^https:\/\/cdn\.cocoapods\.org\/Specs\//u);return Response.json(spec);};
-  const podWork=join(work,'pod');await resourceSupplies.run(supply,()=>preparePods(lockfile,podWork,{library,fetcher,environment:{HOME:work}}));
-  assert.equal(await readFile(join(podWork,'cocoapods/cache/Pods/Release/Example','1.0.0-'+checksum.slice(0,5),'source.txt'),'utf8'),'locked-source');
-  assert.equal(await stat(join(library.root,'parsers')),null);assert.equal(await stat(join(work,'rely/pods')),null);
-  await resourceSupplies.run(supply,()=>preparePods(lockfile,podWork,{library,offline:true,environment:{HOME:work},fetcher:()=>assert.fail('离线复用不得联网')}));
-  assert.equal(originals,2);assert.equal(requests,1);
-  await assert.rejects(resourceSupplies.run(supply,()=>preparePods(lockfile,join(work,'failed'),{library,environment:{HOME:work},fetcher:async()=>new Response(null,{status:503})})),/官方来源响应失败/);
-  assert.equal(await stat(join(work,'failed/cocoapods/cache/Pods/Release/Example')),null);
- });
+
 }
 
-return {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent,prepareToolSupply};
+return {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent};
 })();
-const {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent,prepareToolSupply}=resourceInternals;
-export {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent,prepareToolSupply};
+const {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent}=resourceInternals;
+export {runResourceProcess,inventory,acquireArchive,extractArchive,normalizeCargoManifest,podSourceCoordinate,readDependencySupply,materializePodSupply,materializeMavenCache,mavenSupplyInit,checkCocoaPodsResources,buildSourceTool,posixNames,resourceDeclarations,bootstrapNode,processResources,resources,prepareResourceSupply,supplyRequirements,assertWorkQuiescent};
 
 // 正式实现结束；仅直接使用 node --test 执行本文件时注册以下回归。
 if (process.env.NODE_TEST_CONTEXT && process.argv.length === 2 && !process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value)) && process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href) {
@@ -2997,16 +2892,15 @@ async function runStartCLI(){
  const cancellation=new AbortController();for(const event of ['SIGTERM','SIGINT'])process.once(event,()=>cancellation.abort());
  let unconfirmed=false;
  try {
-  const publicEnv=Object.fromEntries(['HOME','USER','LOGNAME','LANG','LC_ALL','PRODUCT_TOOL_ROOT','PRODUCT_DEPENDENCY_ROOT','PRODUCT_RESULT_FD'].filter(key=>typeof process.env[key]==='string').map(key=>[key,process.env[key]]));
+  const publicEnv=Object.fromEntries(['HOME','USER','LOGNAME','LANG','LC_ALL'].filter(key=>typeof process.env[key]==='string').map(key=>[key,process.env[key]]));
   publicEnv.PRODUCT_WORK_LEASE=session.owner.nonce;const options={signal:cancellation.signal,environment:publicEnv};const node=await bootstrapNode(work,options);
   if(createHash('sha256').update(readFileSync(process.execPath)).digest('hex')!==createHash('sha256').update(readFileSync(node.path)).digest('hex')) {
-   const result=await runBuildProcess(node.path,[fileURLToPath(import.meta.url),...process.argv.slice(2)],publicEnv,root,{signal:cancellation.signal,capture:true,streamError:true,passHost:publicEnv.PRODUCT_RESULT_FD==='3'});
-   if(publicEnv.PRODUCT_RESULT_FD!=='3')process.stdout.write(result.stdout);
+   const result=await runBuildProcess(node.path,[fileURLToPath(import.meta.url),...process.argv.slice(2)],publicEnv,root,{signal:cancellation.signal,capture:true,streamError:true});
+   process.stdout.write(result.stdout);
   } else {
    const result=factoryStartedApp(await start(platform,artifact,{signal:cancellation.signal,tools:await processResources(work,options)}),{platform,artifact});
    const bytes=JSON.stringify(result)+'\n';
-   if(publicEnv.PRODUCT_RESULT_FD!==undefined){if(publicEnv.PRODUCT_RESULT_FD!=='3')fail('结果通道无效');writeSync(3,bytes);}
-   else process.stdout.write(bytes);
+   process.stdout.write(bytes);
   }
  } catch(error) { unconfirmed=String(error.message).includes('退出未确认');throw error; }
  finally { releaseFixedWork(session,{unsafe:unconfirmed}); }
@@ -3677,18 +3571,16 @@ return {materialize};
 if(!(process.env.NODE_TEST_CONTEXT&&process.argv.length===2)&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){void runCLI().catch(error=>{console.error(error);process.exitCode=1;});}
 
 
-// 本产品独立拥有自动化的派发、观察、取消与恢复；控制台只交付任务宿主和仓库授权。
+// 本产品公开GitHub接口只使用普通参数与返回值；平台流程及终态处理归本仓。
 const automationRepository='tuyutata/tuyufactory';
 const automationWorkflows=Object.freeze({"host-macos":"release-host-macos.yml","host-windows":"release-host-windows.yml","host-linux-arm":"release-host-linux-arm.yml","host-linux-amd":"release-host-linux-amd.yml","client-ios":"release-client-ios.yml","client-android":"release-client-android.yml","client-macos":"release-client-macos.yml","client-windows":"release-client-windows.yml"});
-const automationObservers=new WeakMap();
-const automationReconnect=new WeakSet();
+
+
 function automationRoute(route,action){
  const workflow=automationWorkflows[route?.platform];
  if(!workflow||route.repository!==contract.product_id||route.product!==contract.product_id||route.workflow!==workflow
   ||route.canonicalId!==`${contract.product_id}.${route.platform}.release`||route.flow!=='release'
-  ||action&&(action.id!==`${contract.product_id}-release-${route.platform}`||action.canonicalId!==route.canonicalId
-   ||action.flow!=='release'||action.platform!==route.platform||action.productId!==contract.product_id
-   ||action.authorizationLevel!==2||action.production===true))
+  )
   throw Error('产品自动化目标与声明不一致');
  return workflow;
 }
@@ -3700,18 +3592,7 @@ function automationRun(run,workflow,id){
   throw Error('产品 GitHub Run 身份不一致');
  return run;
 }
-async function automationToken(route,actionId,security,task){
- if(typeof security!=='function')throw Error('产品自动化缺少仓库授权');
- const payload={repository:automationRepository,purpose:'workflow',action_id:actionId,platform:route.platform,
-  ...(task?{run_id:task.id,recovery_run_id:task.id}:{})};
- const response=await security('github.repository.token',{payload_base64:Buffer.from(JSON.stringify(payload)).toString('base64')});
- if(response?.ok!==true||!response.values)throw Error('产品 GitHub 仓库授权失败');
- const token=Buffer.from(response.values['repository-main:TOKEN']||'','base64').toString('utf8');
- const expiresAt=Number(Buffer.from(response.values['repository-main:EXPIRES_AT']||'','base64').toString('utf8'));
- if(!/^ghs_[^\s\u0000-\u001f\u007f]{1,2044}$/u.test(token)||!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now()/1000)
-  throw Error('产品 GitHub 短期授权无效');
- return {token,expiresAt};
-}
+
 function automationSafe(value,token){return String(value??'').split(token||'\0').join('[已脱敏]').replace(/gh[sopur]_[A-Za-z0-9_]+/gu,'[已脱敏]').slice(0,4000);}
 async function automationRequest(path,token,{method='GET',body,fetchImpl=fetch,signal}={}){
  if(typeof path!=='string'||path.startsWith('/')||path.includes('..')||/[\r\n]/u.test(path))throw Error('产品 GitHub 路径无效');
@@ -3739,177 +3620,22 @@ export async function dispatchProductAutomation(platform,token,{inputs={},fetchI
  await accepted?.(value);
  return automationRun(await automationRequest(`actions/runs/${value.workflow_run_id}`,token,{fetchImpl}),workflow,value.workflow_run_id);
 }
-async function automationLogs(run,token,host,task){
- const first=await fetch(`https://api.github.com/repos/${automationRepository}/actions/runs/${run.id}/logs`,{
-  redirect:'manual',credentials:'omit',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
-   'X-GitHub-Api-Version':'2026-03-10','User-Agent':contract.product_id},signal:AbortSignal.timeout(30000)});
- if(first.status===404)return;
- let response=first;
- if(first.status===302){const url=new URL(first.headers.get('location'));
-  if(url.protocol!=='https:'||url.username||url.password)throw Error('产品 GitHub 日志下载地址无效');
-  response=await fetch(url,{redirect:'error',credentials:'omit',signal:AbortSignal.timeout(60000)});
- }
- if(!response.ok||!response.body)throw Error('产品 GitHub 日志读取失败');
- let size=0;const chunks=[];for await(const chunk of response.body){size+=chunk.length;if(size>32*1024*1024)throw Error('产品 GitHub 日志归档超限');chunks.push(chunk);}
- const bytes=Buffer.concat(chunks),{inflateRawSync}=await import('node:zlib');
- let end=-1;for(let at=bytes.length-22;at>=Math.max(0,bytes.length-65558);at--)if(bytes.readUInt32LE(at)===0x06054b50){end=at;break;}
- if(end<0)throw Error('产品 GitHub 日志 ZIP 目录无效');
- const count=bytes.readUInt16LE(end+10);if(count>2000)throw Error('产品 GitHub 日志文件过多');
- let at=bytes.readUInt32LE(end+16),total=0;
- for(let i=0;i<count;i++){
-  if(at+46>bytes.length||bytes.readUInt32LE(at)!==0x02014b50)throw Error('产品 GitHub 日志成员无效');
-  const flags=bytes.readUInt16LE(at+8),method=bytes.readUInt16LE(at+10),packed=bytes.readUInt32LE(at+20),length=bytes.readUInt32LE(at+24);
-  const nameSize=bytes.readUInt16LE(at+28),extra=bytes.readUInt16LE(at+30),comment=bytes.readUInt16LE(at+32),local=bytes.readUInt32LE(at+42);
-  const name=bytes.subarray(at+46,at+46+nameSize).toString('utf8');at+=46+nameSize+extra+comment;
-  total+=length;if(flags&1||![0,8].includes(method)||length>32*1024*1024||total>128*1024*1024
-   ||local+30>bytes.length||bytes.readUInt32LE(local)!==0x04034b50)throw Error('产品 GitHub 日志结构无效');
-  const start=local+30+bytes.readUInt16LE(local+26)+bytes.readUInt16LE(local+28);
-  if(start+packed>bytes.length)throw Error('产品 GitHub 日志内容越界');
-  const data=method===0?bytes.subarray(start,start+packed):inflateRawSync(bytes.subarray(start,start+packed),{maxOutputLength:length});
-  if(data.length!==length)throw Error('产品 GitHub 日志大小不一致');
-  if(name.endsWith('.txt')){host.report(task,`GitHub日志：${automationSafe(name,token)}`);
-   for(const line of data.toString('utf8').split(/\r?\n/u))if(line)host.report(task,automationSafe(line,token));}
- }
-}
-function automationIdentity(task,route,workflow,run){
- Object.assign(task,{repository:route.repository,productId:route.product,platform:route.platform,flow:'release',mode:'release',
-  githubRepository:automationRepository,githubWorkflow:workflow,githubRunId:run.id,githubRunNumber:run.run_number,
-  githubRunAttempt:run.run_attempt,githubRunUrl:run.html_url,sourceSHA:run.head_sha,githubRemoteStatus:run.status,recovered:false});
-}
-function automationRecoveryCall(task,route,host){
- return typeof host.recoverTask==='function'?host.recoverTask(task):recoverAutomation(task,route,host);
-}
-function automationRetry(task,route,host){
- if(!task.active||automationReconnect.has(task))return;
- automationReconnect.add(task);
- // 调度任务经宿主重新建立授权上下文；独立调用才直接走本产品恢复入口。
- const timer=setTimeout(()=>{
-  automationReconnect.delete(task);
-  if(!task.active||!task.recovered)return;
-  void Promise.resolve().then(()=>automationRecoveryCall(task,route,host)).catch(error=>{
-    if(!task.active)return;
-    task.recovered=true;host.report(task,'原 Run 重连未完成：'+automationSafe(error.message));host.changed(task);
-    automationRetry(task,route,host);
-  });
- },120000);
- timer.unref?.();
-}
-async function observeProductAutomation(task,route,host,access){
- const workflow=automationRoute(route),jobs=new Map();automationObservers.set(task,access);
- try{while(task.active){
-  const run=automationRun(await automationRequest(`actions/runs/${task.githubRunId}`,access.token),workflow,task.githubRunId);
-  if(task.sourceSHA&&run.head_sha!==task.sourceSHA)throw Error('产品 Run 提交身份已变化');
-  automationIdentity(task,route,workflow,run);host.changed(task);
-  const state=run.status==='completed'?(run.conclusion==='success'?'成功':'失败'):run.status;
-  if(task.automationLastState!==state){host.report(task,'GitHub：'+state);task.automationLastState=state;host.changed(task);}
-  const result=await automationRequest(`actions/runs/${run.id}/jobs?per_page=100`,access.token);
-  if(!Array.isArray(result?.jobs))throw Error('产品 GitHub Job 列表无效');
-  for(const job of result.jobs){const key=job.status+':'+job.conclusion;
-   if(jobs.get(job.id)!==key){jobs.set(job.id,key);host.report(task,`${automationSafe(job.name,access.token)}：${automationSafe(job.conclusion||job.status,access.token)}`);}}
-  if(run.status==='completed'){
-   try{await automationLogs(run,access.token,host,task);}catch{host.report(task,'GitHub 终态已确认；本次日志下载未完成，请查看 Run 链接');}
-   await host.finish(task,task.cancelRequested?1:run.conclusion==='success'?0:1,
-    task.cancelRequested?`任务已取消；塔塔自动化终态：${run.conclusion}`:run.conclusion==='success'?'塔塔自动化成功':`塔塔自动化失败：${run.conclusion}`);
-   await host.refresh?.(route.repository,host.security);return;
-  }
-  await new Promise(resolve=>setTimeout(resolve,5000));
- }}catch(error){if(task.active){task.recovered=true;host.report(task,automationSafe(error.message,access.token)+'；将重新连接原 Run');host.changed(task);automationRetry(task,route,host);}}
- finally{automationObservers.delete(task);}
-}
-function cancelProductAutomation(task,route,host){
- if(task.remoteCancelOperation)return task.remoteCancelOperation;
- const operation=cancelProductAutomationOnce(task,route,host).catch(error=>{
-  if(task.active){task.recovered=true;host.report(task,automationSafe(error.message)+'；将重新连接原 Run');host.changed(task);automationRetry(task,route,host);}
-  throw error;
- });
- task.remoteCancelOperation=operation;
- void operation.finally(()=>{if(task.remoteCancelOperation===operation)delete task.remoteCancelOperation;}).catch(()=>{});
- return operation;
-}
-async function cancelProductAutomationOnce(task,route,host){
- const workflow=automationRoute(route);
- if(!task.active||task.repository!==route.repository||task.platform!==route.platform||task.githubRepository!==automationRepository
-  ||task.githubWorkflow!==workflow||task.canonicalId!==route.canonicalId)throw Error('产品自动化取消身份无效');
- task.cancelRequested=true;host.changed(task);
- if(!task.githubRunId)return {id:task.id,closed:true};
- const remembered=automationObservers.get(task);
- const access=remembered?.expiresAt>Date.now()/1000?remembered:await automationToken(route,task.actionId,host.security,task);
- let run=automationRun(await automationRequest(`actions/runs/${task.githubRunId}`,access.token),workflow,task.githubRunId);
- if(task.sourceSHA&&run.head_sha!==task.sourceSHA)throw Error('产品自动化取消提交身份已变化');
- const already=run.status==='completed';
- if(!already){try{await automationRequest(`actions/runs/${run.id}/cancel`,access.token,{method:'POST'});}catch(error){
-  run=automationRun(await automationRequest(`actions/runs/${task.githubRunId}`,access.token),workflow,task.githubRunId);
-  if(run.status!=='completed')throw error;}}
- for(let i=0;i<60&&run.status!=='completed';i++){await new Promise(resolve=>setTimeout(resolve,5000));run=automationRun(await automationRequest(`actions/runs/${task.githubRunId}`,access.token),workflow,task.githubRunId);}
- if(run.status!=='completed'){
-  host.report(task,'普通取消未收口，执行原 Run 强制取消');
-  await automationRequest(`actions/runs/${task.githubRunId}/force-cancel`,access.token,{method:'POST'});
-  for(let i=0;i<60&&run.status!=='completed';i++){await new Promise(resolve=>setTimeout(resolve,5000));run=automationRun(await automationRequest(`actions/runs/${task.githubRunId}`,access.token),workflow,task.githubRunId);}
- }
- if(run.status!=='completed')throw Error('产品 GitHub 取消尚无远端终态，任务保持活动');
- if(task.active){task.githubRemoteStatus=run.status;await host.finish(task,1,(already?'取消时塔塔自动化已结束：':'任务已取消；塔塔自动化终态：')+run.conclusion);}
- return {id:task.id,closed:true};
-}
-export async function startAutomation(route,action,host){
- const workflow=automationRoute(route,action);
- const existing=host.listTasks().find(task=>task.active&&task.recovered&&task.githubRunId&&task.repository===route.repository&&task.platform===route.platform);
- if(existing)return recoverAutomation(existing,route,host);
- const access=await automationToken(route,action.id,host.security);
- const task=host.createTask({moduleFile:action.file,canonicalId:route.canonicalId,actionId:action.id,title:action.taskName,moduleId:action.productId});
- Object.assign(task,{repository:route.repository,productId:route.product,platform:route.platform,mode:'release',flow:'release',security:host.security});
- task.cancel=()=>cancelProductAutomation(task,route,host);task.secrets.push(access.token);host.created(task);host.report(task,'调用所属仓 '+workflow);
- try{
-  const run=await dispatchProductAutomation(route.platform,access.token,{accepted:value=>{
-   Object.assign(task,{githubRunId:value.workflow_run_id,githubRunUrl:value.html_url,githubRepository:automationRepository,githubWorkflow:workflow});host.changed(task);
-  }});
-  automationIdentity(task,route,workflow,run);host.changed(task);host.report(task,'GitHub 已接收：'+run.html_url);
-  if(task.cancelRequested)void cancelProductAutomation(task,route,host);
-  else void observeProductAutomation(task,route,host,access);
- }catch(error){
-  if(task.githubRunId){task.recovered=true;host.report(task,'原 Run 已接收，后续读取中断；将重新连接');host.changed(task);automationRetry(task,route,host);}
-  else await host.finish(task,1,automationSafe(error.message,access.token));
- }
- return {id:task.id};
-}
-export async function recoverAutomation(task,route,host){
- const workflow=automationRoute(route);
- if(!task?.active||task.mode!=='release'||task.repository!==route.repository||task.platform!==route.platform
-  ||task.canonicalId!==route.canonicalId||task.githubRepository!==automationRepository||task.githubWorkflow!==workflow
-  ||!Number.isSafeInteger(task.githubRunId)||task.githubRunId<1||!/^[0-9a-f]{40}$/u.test(task.sourceSHA||''))
-  throw Error('产品自动化恢复身份无效');
- task.cancel=()=>cancelProductAutomation(task,route,host);task.security=host.security;task.recovered=true;host.changed(task);
- try{const access=await automationToken(route,task.actionId,host.security,task);
-  task.secrets.push(access.token);task.recovered=false;host.changed(task);
-  if(task.cancelRequested)void cancelProductAutomation(task,route,host);
-  else void observeProductAutomation(task,route,host,access);
- }catch(error){task.recovered=true;host.report(task,'原 Run 自动恢复未完成：'+automationSafe(error.message));host.changed(task);automationRetry(task,route,host);}
- return {id:task.id};
-}
+
+
+
+
+
+
+
+
+
 
 
 // 回归夹具只模拟产品所属仓的 GitHub 响应，不派发真实任务。
 if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2){
  const {test}=await import('node:test'),{default:assert}=await import('node:assert/strict');
- test('产品自动化只接受本仓声明的平台、动作和 Workflow',()=>{
-  const platform=Object.keys(automationWorkflows)[0],workflow=automationWorkflows[platform];
-  const route={repository:contract.product_id,product:contract.product_id,platform,workflow,canonicalId:`${contract.product_id}.${platform}.release`,flow:'release'};
-  const action={id:`${contract.product_id}-release-${platform}`,canonicalId:route.canonicalId,flow:'release',
-   platform,productId:contract.product_id,authorizationLevel:2,production:false};
-  assert.equal(automationRoute(route,action),workflow);
-  assert.throws(()=>automationRoute({...route,workflow:'other.yml'},action),/声明/);
-  assert.throws(()=>automationRoute({...route,platform:'other'},action),/声明/);
-  assert.throws(()=>automationRoute(route,{...action,id:'other'}),/声明/);
-  assert.throws(()=>automationRoute(route,{...action,platform:'other'}),/声明/);
-  assert.throws(()=>automationRoute(route,{...action,productId:'other'}),/声明/);
-  assert.throws(()=>automationRoute(route,{...action,authorizationLevel:1}),/声明/);
-  assert.throws(()=>automationRoute(route,{...action,production:true}),/声明/);
- });
- test('控制台恢复经过宿主上下文，独立恢复仍校验产品身份',async()=>{
-  const task={id:77};let called=0;
-  assert.equal(await automationRecoveryCall(task,null,{recoverTask:value=>{called++;return value.id;}}),77);
-  assert.equal(called,1);
-  await assert.rejects(automationRecoveryCall(task,null,{}),/声明/);
- });
+
+
  test('派发只接收准确 Run 回执，读回失败不补发',async()=>{
   const platform=Object.keys(automationWorkflows)[0],workflow=automationWorkflows[platform],id=123;
   const run={id,path:`.github/workflows/${workflow}`,event:'workflow_dispatch',head_branch:'main',head_sha:'a'.repeat(40),
@@ -3930,81 +3656,34 @@ if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2){
   await assert.rejects(dispatchProductAutomation(platform,'fixture-token',{fetchImpl:ambiguous,accepted:()=>accepted++}),/未确认/);
   assert.equal(accepted,1); // 接收后读回失败仍只派发一次，原 Run 坐标已交付调用方。
  });
- test('Run 观察核对终态与 Job；伪造身份保留原任务并安排恢复',async()=>{
-  const platform=Object.keys(automationWorkflows)[0],workflow=automationWorkflows[platform],id=123;
-  const route={repository:contract.product_id,product:contract.product_id,platform,workflow,
-   canonicalId:`${contract.product_id}.${platform}.release`,flow:'release'};
-  const run={id,path:`.github/workflows/${workflow}`,event:'workflow_dispatch',head_branch:'main',head_sha:'a'.repeat(40),
-   repository:{full_name:automationRepository},html_url:`https://github.com/${automationRepository}/actions/runs/${id}`,
-   run_number:1,run_attempt:1,status:'completed',conclusion:'success'};
-  const original=globalThis.fetch,events=[];
-  const host={report:(_task,message)=>events.push(message),changed:()=>{},finish:async(task,code)=>{task.active=false;events.push(`完成:${code}`);}};
-  const task={id:7,active:true,githubRunId:id,sourceSHA:run.head_sha};
-  try{
-   globalThis.fetch=async url=>{
-    if(String(url).endsWith('/logs'))return new Response(null,{status:404});
-    if(String(url).includes('/jobs?'))return Response.json({jobs:[{id:1,name:'构建',status:'completed',conclusion:'success'}]});
-    return Response.json(run);
-   };
-   await observeProductAutomation(task,route,host,{token:'ghs_fixture',expiresAt:Math.ceil(Date.now()/1000)+60});
-   assert.equal(task.active,false);assert.ok(events.some(value=>value.includes('构建：success')));
-   assert.ok(events.includes('完成:0'));
-   const forged={...run,repository:{full_name:'other/repo'}};
-   const bad={id:8,active:true,githubRunId:id,sourceSHA:run.head_sha};
-   globalThis.fetch=async()=>Response.json(forged);
-   await observeProductAutomation(bad,route,host,{token:'ghs_fixture',expiresAt:Math.ceil(Date.now()/1000)+60});
-   assert.equal(bad.recovered,true);assert.equal(bad.active,true);bad.active=false;
-  }finally{globalThis.fetch=original;}
- });
- test('取消仅作用原 Run；过期授权重新领取，恢复不再次派发',async()=>{
-  const platform=Object.keys(automationWorkflows)[0],workflow=automationWorkflows[platform],id=123;
-  const route={repository:contract.product_id,product:contract.product_id,platform,workflow,
-   canonicalId:`${contract.product_id}.${platform}.release`,flow:'release'};
-  const actionId=`${contract.product_id}-release-${platform}`,sha='a'.repeat(40);
-  const run={id,path:`.github/workflows/${workflow}`,event:'workflow_dispatch',head_branch:'main',head_sha:sha,
-   repository:{full_name:automationRepository},html_url:`https://github.com/${automationRepository}/actions/runs/${id}`,
-   run_number:1,run_attempt:1,status:'in_progress',conclusion:null};
-  const token='ghs_fixture',originalFetch=globalThis.fetch,originalTimer=globalThis.setTimeout;
-  const calls=[],payloads=[];
-  const security=async(_name,{payload_base64})=>{
-   payloads.push(JSON.parse(Buffer.from(payload_base64,'base64').toString('utf8')));
-   return {ok:true,values:{'repository-main:TOKEN':Buffer.from(token).toString('base64'),
-    'repository-main:EXPIRES_AT':Buffer.from(String(Math.ceil(Date.now()/1000)+3600)).toString('base64')}};
+
+
+}
+
+// 外部调用方使用普通参数和返回值；此公开接口不接收任务宿主。
+export const automationClient=Object.freeze({automationRepository,automationWorkflows,automationRoute,automationRun,automationSafe,automationRequest,dispatchProductAutomation});
+
+// 合成回归只在本文件作为测试入口时注册；普通导入不要求调度器、其它仓库或外部服务。
+if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===import.meta.filename){
+ const {test}=await import('node:test'),{default:assert}=await import('node:assert/strict');
+ test('独立自动化接口不接收任务宿主，准确派发与错误回执只请求一次',async()=>{
+  const api=automationClient,workflows=api.automationWorkflows||api.automationWorkflow;
+  const platform=Object.keys(workflows)[0],workflow=workflows[platform],repository=api.automationRepository;
+  const dispatch=api.dispatchAutomation||api.dispatchProductAutomation||api.dispatch;
+  let dispatches=0,mode='success';
+  const run={id:731,run_number:1,run_attempt:1,path:'.github/workflows/'+workflow,event:'workflow_dispatch',head_branch:'main',
+   head_sha:'a'.repeat(40),repository:{full_name:repository},status:'completed',conclusion:'success',
+   html_url:'https://github.com/'+repository+'/actions/runs/731'};
+  const fetchImpl=async(url,options)=>{
+   if(new URL(url).pathname.endsWith('/dispatches')){
+    dispatches++;assert.equal(options.method,'POST');
+    return mode==='ambiguous'?new Response(null,{status:204}):Response.json({workflow_run_id:731,html_url:run.html_url});
+   }
+   assert.ok(new URL(url).pathname.endsWith('/runs/731'));
+   return Response.json(mode==='wrong'?{...run,head_sha:'invalid'}:run);
   };
-  const host={security,report:()=>{},changed:()=>{},finish:async(task,code)=>{task.active=false;task.resultCode=code;}};
-  const task={id:7,active:true,mode:'release',repository:route.repository,platform,canonicalId:route.canonicalId,
-   actionId,githubRepository:automationRepository,githubWorkflow:workflow,githubRunId:id,sourceSHA:sha,secrets:[]};
-  try{
-   globalThis.fetch=async(url,options)=>{
-    const path=String(url);calls.push([path,options.method||'GET']);
-    if(path.endsWith(`/actions/runs/${id}/cancel`))return new Response(null,{status:202});
-    if(path.endsWith('/logs'))return new Response(null,{status:404});
-    if(path.includes('/jobs?'))return Response.json({jobs:[]});
-    return Response.json(calls.some(([,method])=>method==='POST')?{...run,status:'completed',conclusion:'cancelled'}:run);
-   };
-   // 夹具仅缩短取消轮询等待；正式轮询仍保持原间隔。
-   globalThis.setTimeout=(callback,delay,...args)=>delay===5000?originalTimer(callback,0,...args):originalTimer(callback,delay,...args);
-   automationObservers.set(task,{token:'ghs_expired',expiresAt:0});
-   await cancelProductAutomation(task,route,host);
-   assert.equal(task.active,false);assert.equal(task.resultCode,1);
-   assert.equal(payloads.length,1);assert.equal(payloads[0].run_id,task.id);
-   assert.equal(payloads[0].recovery_run_id,task.id);
-   assert.equal(calls.filter(([,method])=>method==='POST').length,1);
-   assert.ok(calls.some(([path])=>path.endsWith(`/actions/runs/${id}/cancel`)));
-   assert.ok(calls.every(([path])=>path.includes(`/repos/${automationRepository}/`)));
-   const recovery={...task,active:true,cancelRequested:false,recovered:true,secrets:[]};
-   calls.length=0;
-   globalThis.fetch=async(url,options)=>{
-    const path=String(url);calls.push([path,options.method||'GET']);
-    if(path.endsWith('/logs'))return new Response(null,{status:404});
-    if(path.includes('/jobs?'))return Response.json({jobs:[]});
-    return Response.json({...run,status:'completed',conclusion:'success'});
-   };
-   const completed=new Promise(resolve=>{host.finish=async(value,code)=>{value.active=false;resolve(code);};});
-   await recoverAutomation(recovery,route,host);
-   assert.equal(await completed,0);assert.equal(typeof recovery.cancel,'function');
-   assert.equal(calls.filter(([,method])=>method==='POST').length,0);
-   assert.ok(calls.some(([path])=>path.endsWith(`/actions/runs/${id}`)));
-  }finally{globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimer;}
+  const invoke=()=>api.automationTransport?api.automationTransport.run({fetchImpl},()=>dispatch(platform,'fixture',{fetchImpl})):dispatch(platform,'fixture',{fetchImpl});
+  assert.equal((await invoke()).id,731);assert.equal(dispatches,1);
+  for(const failure of ['ambiguous','wrong']){mode=failure;dispatches=0;await assert.rejects(invoke);assert.equal(dispatches,1);}
  });
 }
