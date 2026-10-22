@@ -33,7 +33,9 @@ void main() {
     final originalScript = File('scripts/project.mjs').resolveSymbolicLinksSync();
     final manifest = File('${File(originalScript).parent.parent.path}/pubspec.yaml').readAsStringSync();
     expect(manifest, contains('https://github.com/crcfrcn/citizensdk.git'));
-    expect(manifest, contains('52b83f8f33a9424f3a92161da4f183678263ab7c'));
+    final lock=File('${File(originalScript).parent.parent.path}/pubspec.lock').readAsStringSync();
+    final sha=RegExp(r'ref: ([a-f0-9]{40})').firstMatch(manifest)!.group(1)!;
+    expect(lock,contains('resolved-ref: '+sha));
     expect(manifest, matches(RegExp(r'path: \.')));
     // 原始声明保持Git来源，Pub消费视图仅存在本轮工程。
     final ignore = File('.gitignore');
@@ -97,12 +99,12 @@ void main() {
 
   test('macOS使用标准插件与产品锁定SDK声明', () {
     final podfile = File('macos/Podfile').readAsStringSync();
-    final contract = File('sdk-dependencies.json').readAsStringSync();
+    final project=File('scripts/project.mjs').readAsStringSync();
     expect(podfile, contains('flutter_install_all_macos_pods'));
     expect(podfile, isNot(contains('File.symlink')));
-    expect(contract, contains('"local"'));
-    expect(contract, contains('"git"'));
-    expect(contract, contains('"public"'));
+    expect(project,contains('api.consume'));
+    expect(project,contains('CITIZENSDK_PACKAGE'));
+    expect(project,isNot(contains('localSdkMode')));
   });
 }
 
