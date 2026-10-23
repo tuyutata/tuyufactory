@@ -645,7 +645,6 @@ Node 回归由所属 Build 或 Workflow 执行，门禁只读核对登记与源�
 
 ## GitHub自动化
 
-自动化派发与平台映射唯一归scripts/build.mjs，scripts/config.mjs公开describeAction({flow,platform,inputs})。调用方只提供已授权令牌和inputs.sdkRun；本仓在任何网络请求前拒绝缺失、非规范、非正安全整数或多余字段，按唯一sdk_run字段交付所选Workflow。这里的编号格式校验不证明SDK Run已成功；准确成功来源、同版Artifact及产物核验必须由后续Workflow通过SDK公开接口完成。
 
 现有平台路径为：
 
@@ -698,7 +697,6 @@ GitHub接口使用普通参数和已授权令牌，返回本仓既有版本计�
 
 ## 外部调用入口
 
-本仓scripts/config.mjs的describeAction({flow,platform,inputs})声明流程入口。调用方交付已授权令牌与唯一inputs.sdkRun，本仓拥有平台选择、参数校验及单次GitHub派发，返回准确Run编号；读取失败或回执不确定不补发。未声明的安装或发布入口明确失败。
 
 ## CitizenSDK完整交付接入
 
@@ -714,3 +712,5 @@ CitizenSDK来源由本产品pubspec.yaml与pubspec.lock的固定Git提交共同�
 固定根回归子进程显式保留本轮测试身份和会话，不进入生产target/test；收尾回归在自身作用域导入fs，旧release脚本专属测试只在确有残留时删除。Git工具仍按原公开声明交付并校验，不使用其它版本或伪造版本。
 
 固定来源工程回归验证SDK真实文件副本、准确路径、不同inode及原始字节；不要求旧符号链接。厂家编译夹具按当前平台选用准确target/build目录，CLI仍调用现有真实入口，不放宽生产校验。
+
+本产品scripts/config.mjs的describeAction仅返回repository、workflow、ref、inputs，或既有本地进程命令声明；不导入构建实现、不派发GitHub请求、不处理令牌、版本或历史。控制台使用统一数据接口直接派发并只读观察准确Run；产品GitHub业务归所属既有YAML。本次自动化Run名称使用运行编号，正式构建及产物保持版本名称。已有工具和依赖复用，缺少时才按原声明准备。
