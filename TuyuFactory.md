@@ -675,7 +675,7 @@ macOS运行时、资源和分机组装组件的本机正文归scripts/build.mjs�
 
 ## 配置需求公开接口
 
-本仓 `scripts/config.mjs` 声明厂家端 Android 的 APP_KEY、iOS 的 IOS_KEY 和 APP_PROFILE，均为本产品独立保密签名材料；旧控制台通用 Cloudflare 账户、数据库、桶与 R2 名称没有本仓现行消费者。保密签名配置保持现有声明；独立发布所用的候选验真、本机发布签名、资产上传及发布后清理入口已移除。
+本仓 `scripts/config.mjs` 声明厂家端 Android 的 APP_KEY、iOS 的 IOS_KEY 和 TUYUFACTORY_PROFILE，均为本产品独立保密签名材料；旧控制台通用 Cloudflare 账户、数据库、桶与 R2 名称没有本仓现行消费者。保密签名配置保持现有声明；独立发布所用的候选验真、本机发布签名、资产上传及发布后清理入口已移除。
 
 控制台任务取消信号传入本仓签名和发布接口。本机工具终止本轮进程组并等待退出，iOS 钥匙串搜索列表仍在收尾阶段恢复；上传中止后独立回查本次已确认归属的 Tag/Release，撤销并确认不存在。创建回执不明时不删除同名远端资源，准确报告未闭合失败。
 
@@ -714,3 +714,5 @@ CitizenSDK来源由本产品pubspec.yaml与pubspec.lock的固定Git提交共同�
 固定来源工程回归验证SDK真实文件副本、准确路径、不同inode及原始字节；不要求旧符号链接。厂家编译夹具按当前平台选用准确target/build目录，CLI仍调用现有真实入口，不放宽生产校验。
 
 本产品scripts/config.mjs的describeAction仅返回repository、workflow、ref、inputs，或既有本地进程命令声明；不导入构建实现、不派发GitHub请求、不处理令牌、版本或历史。控制台使用统一数据接口直接派发并只读观察准确Run；产品GitHub业务归所属既有YAML。本次自动化Run名称使用运行编号，正式构建及产物保持版本名称。已有工具和依赖复用，缺少时才按原声明准备。
+
+本产品配置项统一为name、description、accessLevel、kind、format五个必填字段；不适用规则明确填写“不适用”。name严格使用两组大写字母和一个下划线，同名共用控制台唯一值，当前页仅汇总实际声明的使用产品。操作列固定写入/更换、查看、删除；保密查看保留生物识别。现有配置消费者随声明同步改名，官方工具/API字段保持官方名称，不新增旧名兼容或配置副本。
