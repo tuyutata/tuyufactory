@@ -34,13 +34,26 @@ fn manufacturer_sources_are_independent_from_booking_sources() {
 }
 
 #[test]
-fn linux_platforms_own_strict_automation_builders() {
-    let workflows = project_root().join(".github/workflows");
-    for platform in ["linux-arm", "linux-amd"] {
-        let entry = fs::read_to_string(workflows.join(format!("release-host-{platform}.mjs"))).unwrap();
-        assert!(entry.contains("TUYUFACTORY_PLATFORM"));
-        assert!(entry.contains("host-materialize"));
-        assert!(!entry.contains("scripts/build.mjs"));
-        assert!(project_root().join("native").join(format!("{platform}.package.json")).is_file());
+fn linux_platforms_use_current_product_build_and_architecture_declarations() {
+    // 本机合同只核验当前唯一入口；远端工作流的真实验收归自动化步骤。
+    let root = project_root();
+    let build = fs::read_to_string(root.join("scripts/build.mjs")).unwrap();
+    assert!(build.contains("export const contract="));
+    assert!(build.contains("export async function runOwnedShell"));
+    assert!(build.contains("if(process.argv[2]==='materialize')"));
+    assert!(!build.contains("tuyubooking/imported"));
+    for (platform, cpu, package) in [
+        ("linux-arm", "aarch64", "arm64"),
+        ("linux-amd", "x86_64", "amd64"),
+    ] {
+        assert!(build.contains(&format!("\"host-{platform}\"")));
+        let value: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(root.join("native").join(format!("{platform}.package.json")))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(value["platform"], platform);
+        assert_eq!(value["cpuArchitecture"], cpu);
+        assert_eq!(value["packageArchitecture"], package);
     }
 }

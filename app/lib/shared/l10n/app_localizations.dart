@@ -457,6 +457,78 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'TLS 证书 SHA-256 指纹'**
   String get certificateSha256;
+
+  /// No description provided for @walletWords.
+  ///
+  /// In zh, this message translates to:
+  /// **'助记词数量'**
+  String get walletWords;
+
+  /// No description provided for @walletPassword.
+  ///
+  /// In zh, this message translates to:
+  /// **'附加密码（可留空）'**
+  String get walletPassword;
+
+  /// No description provided for @walletMnemonic.
+  ///
+  /// In zh, this message translates to:
+  /// **'助记词'**
+  String get walletMnemonic;
+
+  /// No description provided for @walletBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份助记词'**
+  String get walletBackup;
+
+  /// No description provided for @walletConfirmed.
+  ///
+  /// In zh, this message translates to:
+  /// **'我已妥善备份助记词及附加密码'**
+  String get walletConfirmed;
+
+  /// No description provided for @walletContinue.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续'**
+  String get walletContinue;
+
+  /// No description provided for @walletCommit.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认创建'**
+  String get walletCommit;
+
+  /// No description provided for @walletCancel.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get walletCancel;
+
+  /// No description provided for @walletPasswordInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'附加密码不符合钱包要求。'**
+  String get walletPasswordInvalid;
+
+  /// No description provided for @walletMnemonicInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'助记词不符合所选词数或校验要求。'**
+  String get walletMnemonicInvalid;
+
+  /// No description provided for @walletRecovering.
+  ///
+  /// In zh, this message translates to:
+  /// **'钱包正在恢复或清理，请完成后重试。'**
+  String get walletRecovering;
+
+  /// No description provided for @walletCredential.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁钱包'**
+  String get walletCredential;
 }
 
 class _AppLocalizationsDelegate

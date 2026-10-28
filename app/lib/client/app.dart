@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:citizen_sdk/citizen_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:tuyufactory/client/connection_page.dart';
+import 'package:tuyufactory/shared/product.dart';
 import 'package:tuyufactory/client/host_connection.dart';
 import 'package:tuyufactory/shared/l10n/app_localizations.dart';
 
@@ -28,7 +30,9 @@ final class _ClientAppState extends State<ClientApp> {
   late final HostConnection _connection;
   CitizenSdk? _sdk;
   CitizenCapabilitySnapshot? _capabilities;
-  CitizenWalletProfile? _profile;
+  CitizenWalletState? _walletState;
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  int _walletRead = 0;
   StreamSubscription<CitizenSdkEvent>? _events;
   Future<void>? _starting;
   Future<void>? _stopping;
@@ -88,6 +92,36 @@ final class _ClientAppState extends State<ClientApp> {
     }
   }
 
+  Future<Uint8List?> _requestCredential(
+    CitizenCredentialChallenge challenge,
+  ) async {
+    final context = _navigatorKey.currentContext;
+    if (!mounted || context == null) return null;
+    return requestWalletCredential(context, challenge);
+  }
+
+  Future<void> _refreshWallet(CitizenSdk sdk) async {
+    final read = ++_walletRead;
+    try {
+      final state = await sdk.wallet.getState().result;
+      if (!mounted || !identical(sdk, _sdk) || read != _walletRead) return;
+      setState(() => _walletState = state);
+    } on Object {
+      if (!mounted || !identical(sdk, _sdk) || read != _walletRead) return;
+      setState(() => _walletState = null);
+      rethrow;
+    }
+  }
+
+  Future<void> _refreshWalletAndConnect() async {
+    final sdk = _sdk;
+    if (sdk == null) return;
+    await _refreshWallet(sdk);
+    if (mounted && identical(sdk, _sdk) && walletReady(_walletState)) {
+      _connectWalletHost();
+    }
+  }
+
   Future<void> _openAndStartSdk() async {
     if (mounted) {
       setState(() {
@@ -98,7 +132,7 @@ final class _ClientAppState extends State<ClientApp> {
     CitizenSdk? sdk;
     StreamSubscription<CitizenSdkEvent>? events;
     try {
-      sdk = await CitizenSdk.open();
+      sdk = await CitizenSdk.open(credentialProvider: _requestCredential);
       // 分机设备独立持有同一完整 SDK，且在 start 前开始接收事件。
       events = sdk.events.listen(
         _handleSdkEvent,
@@ -110,7 +144,7 @@ final class _ClientAppState extends State<ClientApp> {
       _events = events;
       await sdk.start();
       final capabilities = await sdk.getCapabilities();
-      final profile = await sdk.wallet.getProfile();
+      await _refreshWallet(sdk);
       if (!mounted) {
         if (sdk.lifecycle == CitizenSdkLifecycle.running) await sdk.stop();
         await sdk.close();
@@ -121,10 +155,10 @@ final class _ClientAppState extends State<ClientApp> {
       }
       setState(() {
         _capabilities = capabilities;
-        _profile = profile;
+
         _error = null;
       });
-      if (profile != null) _connectWalletHost();
+      if (walletReady(_walletState)) _connectWalletHost();
     } on Object catch (error) {
       Object reportedError = error;
       if (sdk != null && identical(_sdk, sdk)) {
@@ -150,7 +184,8 @@ final class _ClientAppState extends State<ClientApp> {
     _events = null;
     _sdk = null;
     _capabilities = null;
-    _profile = null;
+    _walletRead++;
+    _walletState = null;
   }
 
   void _handleSdkEvent(CitizenSdkEvent event) {
@@ -184,7 +219,8 @@ final class _ClientAppState extends State<ClientApp> {
       _events = null;
       _sdk = null;
       _capabilities = null;
-      _profile = null;
+      _walletRead++;
+      _walletState = null;
     } on Object {
       _stopping = null;
       rethrow;
@@ -194,6 +230,7 @@ final class _ClientAppState extends State<ClientApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -209,11 +246,11 @@ final class _ClientAppState extends State<ClientApp> {
         connection: _connection,
         sdk: _sdk,
         capabilities: _capabilities,
-        profile: _profile,
+        walletState: _walletState,
         sdkStarting: _starting != null,
         sdkError: _error,
         onRetrySdk: _startSdk,
-        onWalletReady: _connectWalletHost,
+        onWalletReady: _refreshWalletAndConnect,
       ),
     );
   }

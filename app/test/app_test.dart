@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'package:flutter/services.dart';
 import 'package:zxing2/qrcode.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -19,23 +20,34 @@ void main() {
     _releases = 0;
     _devicePending = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(const MethodChannel('flutter_lite_camera'), (call) async {
-        switch (call.method) {
-          case 'getDeviceList':
-            if (_devicePending != null) return _devicePending!.future;
-            return _cameraAvailable ? ['test-camera'] : <String>[];
-          case 'open': return _cameraOpen;
-          case 'startPreview': return 1;
-          case 'captureFrame': return _frame;
-          case 'stopPreview': return null;
-          case 'release': _releases++; return null;
-        }
-        throw StateError('Unexpected camera test method');
-      });
+        .setMockMethodCallHandler(const MethodChannel('flutter_lite_camera'), (
+          call,
+        ) async {
+          switch (call.method) {
+            case 'getDeviceList':
+              if (_devicePending != null) return _devicePending!.future;
+              return _cameraAvailable ? ['test-camera'] : <String>[];
+            case 'open':
+              return _cameraOpen;
+            case 'startPreview':
+              return 1;
+            case 'captureFrame':
+              return _frame;
+            case 'stopPreview':
+              return null;
+            case 'release':
+              _releases++;
+              return null;
+          }
+          throw StateError('Unexpected camera test method');
+        });
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(const MethodChannel('flutter_lite_camera'), null);
+        .setMockMethodCallHandler(
+          const MethodChannel('flutter_lite_camera'),
+          null,
+        );
   });
   testWidgets('启动完成前不显示就绪或管理员表单', (tester) async {
     final native = _NativeRuntime();
@@ -80,7 +92,10 @@ void main() {
 
     expect(runtime.phase, FactoryRuntimePhase.needsAdministrator);
     expect(find.text('设置管理员'), findsOneWidget);
-    expect(find.byKey(const ValueKey('administrator-initialization-challenge-qr')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('administrator-initialization-challenge-qr')),
+      findsOneWidget,
+    );
     expect(find.text('QR_V1 签名响应'), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
     expect(native.challengeCalls, 1);
@@ -192,17 +207,28 @@ void main() {
     }
   }
 
-
   testWidgets('实际摄像头帧识别后转交原生接口，提交期间不重复，成功进入系统', (tester) async {
     _cameraAvailable = true;
     _frame = _qrFrame('test-signed-response');
-    final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..startResult.complete(_ready);
     final runtime = await _mount(tester, native);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('administrator-name-field')), ' 测试管理员 ');
+    await tester.enterText(
+      find.byKey(const ValueKey('administrator-name-field')),
+      ' 测试管理员 ',
+    );
     await _waitForScan(tester, native);
     expect(runtime.initializingAdministrator, isTrue);
-    expect(tester.widget<TextButton>(find.byKey(const ValueKey('refresh-administrator-qr'))).onPressed, isNull);
+    expect(
+      tester
+          .widget<TextButton>(
+            find.byKey(const ValueKey('refresh-administrator-qr')),
+          )
+          .onPressed,
+      isNull,
+    );
     await runtime.initializeAdministrator(response: 'duplicate');
     expect(native.initializeCalls, [('test-signed-response', '测试管理员')]);
     expect(runtime.administratorChallenge, isNull);
@@ -216,12 +242,19 @@ void main() {
   testWidgets('验签失败不泄漏响应，刷新新挑战后可再次扫描，空姓名传空值', (tester) async {
     _cameraAvailable = true;
     _frame = _qrFrame('test-rejected-response');
-    final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..startResult.complete(_ready);
     final runtime = await _mount(tester, native);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('administrator-name-field')), '   ');
+    await tester.enterText(
+      find.byKey(const ValueKey('administrator-name-field')),
+      '   ',
+    );
     await _waitForScan(tester, native);
-    native.initializeResult.completeError(const FactoryNativeException('raw-sensitive-test-response'));
+    native.initializeResult.completeError(
+      const FactoryNativeException('raw-sensitive-test-response'),
+    );
     await tester.pumpAndSettle();
     expect(runtime.phase, FactoryRuntimePhase.needsAdministrator);
     expect(find.byKey(const ValueKey('signature-error')), findsOneWidget);
@@ -246,7 +279,9 @@ void main() {
   testWidgets('无法打开相机及畸形帧不能初始化，刷新后可恢复', (tester) async {
     _cameraAvailable = true;
     _cameraOpen = false;
-    final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..startResult.complete(_ready);
     final runtime = await _mount(tester, native);
     await tester.pumpAndSettle();
     expect(find.textContaining('摄像头不可用'), findsOneWidget);
@@ -267,7 +302,9 @@ void main() {
   });
 
   testWidgets('挑战失败显示可恢复错误，不创建文本粘贴旁路', (tester) async {
-    final native = _NativeRuntime()..initialized = false..challengeFails = true
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..challengeFails = true
       ..startResult.complete(_ready);
     await _mount(tester, native);
     await tester.pumpAndSettle();
@@ -278,12 +315,17 @@ void main() {
     await tester.ensureVisible(refresh);
     await tester.tap(refresh);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('administrator-initialization-challenge-qr')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('administrator-initialization-challenge-qr')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('页面退出后迟到的相机启动必须释放设备', (tester) async {
     _devicePending = Completer<List<String>>();
-    final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..startResult.complete(_ready);
     await _mount(tester, native);
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
@@ -296,7 +338,9 @@ void main() {
   testWidgets('初始化中退出不再通知旧页面或开放业务', (tester) async {
     _cameraAvailable = true;
     _frame = _qrFrame('test-exit-response');
-    final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+    final native = _NativeRuntime()
+      ..initialized = false
+      ..startResult.complete(_ready);
     await _mount(tester, native);
     await tester.pumpAndSettle();
     await _waitForScan(tester, native);
@@ -308,14 +352,19 @@ void main() {
 
   for (final language in ['zh', 'en']) {
     for (final size in [const Size(1200, 900), const Size(640, 720)]) {
-      testWidgets('扫码页双语和正方形布局 ' + language + size.toString(), (tester) async {
-        final native = _NativeRuntime()..initialized = false..startResult.complete(_ready);
+      testWidgets('扫码页双语和正方形布局 $language$size', (tester) async {
+        final native = _NativeRuntime()
+          ..initialized = false
+          ..startResult.complete(_ready);
         await _mount(tester, native, locale: Locale(language));
         tester.view.physicalSize = size;
         await tester.pumpAndSettle();
         expect(find.text('设置管理员'), findsOneWidget);
         expect(find.text('Set administrator'), findsOneWidget);
-        for(final key in ['signature-request-panel', 'signature-response-panel']) {
+        for (final key in [
+          'signature-request-panel',
+          'signature-response-panel',
+        ]) {
           final panel = tester.getSize(find.byKey(ValueKey(key)));
           expect(panel.width, closeTo(panel.height, 0.01));
         }
@@ -382,9 +431,12 @@ final class _NativeRuntime implements FactoryNativeRuntime {
   @override
   Future<String> administratorChallenge() async {
     challengeCalls++;
-    if (challengeFails) throw const FactoryNativeException('raw-challenge-error');
+    if (challengeFails) {
+      throw const FactoryNativeException('raw-challenge-error');
+    }
     return jsonEncode({'test_challenge': challengeCalls});
   }
+
   int challengeCalls = 0;
   bool challengeFails = false;
   @override
@@ -472,10 +524,17 @@ Map<String, Object?> _qrFrame(String text) {
   }
   return {'data': rgb, 'width': size, 'height': size};
 }
-Future<void> _waitForScan(WidgetTester tester, _NativeRuntime native, {int count = 1}) async {
-  for(var i = 0; i < 100 && native.initializeCalls.length < count; i++) {
+
+Future<void> _waitForScan(
+  WidgetTester tester,
+  _NativeRuntime native, {
+  int count = 1,
+}) async {
+  for (var i = 0; i < 100 && native.initializeCalls.length < count; i++) {
     await tester.pump(const Duration(milliseconds: 350));
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
   }
   await tester.pump();
   expect(native.initializeCalls, hasLength(count));

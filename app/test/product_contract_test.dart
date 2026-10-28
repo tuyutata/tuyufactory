@@ -7,9 +7,15 @@ import 'package:tuyufactory/shared/product.dart';
 
 void main() {
   test('Android generated names use the AGP Variant API', () {
-    final root = Platform.environment['TUYUFACTORY_ROOT'] ?? Directory.current.parent.path;
-    final script = File('$root/app/android/app/build.gradle.kts').readAsStringSync();
-    expect(script, contains('abstract class GenerateAppNameResources : DefaultTask'));
+    final root =
+        Platform.environment['TUYUFACTORY_ROOT'] ??
+        Directory.current.parent.path;
+    final script = File('$root/app/android/app/build.gradle.kts')
+        .readAsStringSync();
+    expect(
+      script,
+      contains('abstract class GenerateAppNameResources : DefaultTask'),
+    );
     expect(script, contains('generatedResources.set(appNameResources)'));
     expect(script, contains('androidComponents.onVariants'));
     expect(script, contains('addGeneratedSourceDirectory'));
@@ -19,7 +25,9 @@ void main() {
   });
 
   test('Windows system names preserve separate technical identities', () {
-    final root = Platform.environment['TUYUFACTORY_ROOT'] ?? Directory.current.parent.path;
+    final root =
+        Platform.environment['TUYUFACTORY_ROOT'] ??
+        Directory.current.parent.path;
     final runner = File('$root/app/windows/runner/main.cpp').readAsStringSync();
     expect(runner, contains('ApplicationDisplayName()'));
     expect(runner, contains('PKEY_AppUserModel_RelaunchDisplayNameResource'));
@@ -29,7 +37,10 @@ void main() {
     expect(runner, contains('::_wcsicmp(expanded, executable.c_str()) != 0'));
     expect(runner, contains('FILE_ATTRIBUTE_REPARSE_POINT'));
     expect(runner, isNot(contains('CreateShortcut')));
-    expect(File('$root/app/windows/runner/Runner.rc').readAsStringSync(), contains('#pragma code_page(65001)'));
+    expect(
+      File('$root/app/windows/runner/Runner.rc').readAsStringSync(),
+      contains('#pragma code_page(65001)'),
+    );
   });
 
   test('安装名称按系统语言解析并保留产品身份', () {
@@ -37,27 +48,46 @@ void main() {
     final app = root == null ? Directory.current.path : '$root/app';
     String source(String path) => File('$app/$path').readAsStringSync();
     for (final platform in ['ios', 'macos']) {
-      final catalog = jsonDecode(source('$platform/Runner/InfoPlist.xcstrings'));
+      final catalog = jsonDecode(
+        source('$platform/Runner/InfoPlist.xcstrings'),
+      );
       for (final key in ['CFBundleDisplayName', 'CFBundleName']) {
-        for (final entry in {'en': 'TuyuFactory', 'zh-Hans': '途遇厂家端', 'zh-Hant': '途遇厂家端'}.entries) {
-          expect(catalog['strings'][key]['localizations'][entry.key]['stringUnit']['value'], entry.value);
+        for (final entry in {
+          'en': 'TuyuFactory',
+          'zh-Hans': '途遇厂家端',
+          'zh-Hant': '途遇厂家端',
+        }.entries) {
+          expect(
+            catalog['strings'][key]['localizations'][entry
+                .key]['stringUnit']['value'],
+            entry.value,
+          );
         }
       }
-      expect(source('$platform/Runner.pbxproj'), contains('InfoPlist.xcstrings'));
+      expect(
+        source('$platform/Runner.pbxproj'),
+        contains('InfoPlist.xcstrings'),
+      );
     }
-    expect(source('android/app/src/main/AndroidManifest.xml'), contains('android:label="@string/app_name"'));
+    expect(
+      source('android/app/src/main/AndroidManifest.xml'),
+      contains('android:label="@string/app_name"'),
+    );
     final gradle = source('android/app/build.gradle.kts');
     expect(gradle, contains('generateAppNameResources'));
     expect(gradle, contains('app_en.arb'));
     expect(gradle, contains('app_zh.arb'));
-    expect(gradle, contains('layout.buildDirectory.dir("generated/app-name/res")'));
+    expect(
+      gradle,
+      contains('layout.buildDirectory.dir("generated/app-name/res")'),
+    );
     final windows = source('windows/runner/Runner.rc');
     expect(windows, contains('IDS_TUYU_APPLICATION_NAME "TuyuFactory"'));
     expect(windows, contains('IDS_TUYU_APPLICATION_NAME "途遇厂家端"'));
   });
 
   test('厂家端账户与现有主机安装身份保持不变', () {
-    expect(TuyuFactoryProduct.id, 'tuyufactory');
+    expect(TuyuFactoryProduct.productId, 'tuyufactory');
     expect(TuyuFactoryProduct.technicalName, 'TuyuFactory');
     expect(TuyuFactoryProduct.displayName, '途遇厂家端');
     expect(TuyuFactoryProduct.hostApplicationId, 'com.tuyufactory');
@@ -146,9 +176,8 @@ void main() {
   }
 
   test('HTTPS 地址解析不改写显式端口和路径', () {
-    final uri = SecureEndpoint.parse(
-      'https://factory.example.com:59443/app',
-    ).uri;
+    final uri = SecureEndpoint.parse('https://factory.example.com:59443/app')
+        .uri;
     expect(uri.port, 59443);
     expect(uri.path, '/app');
   });

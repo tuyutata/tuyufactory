@@ -783,8 +783,9 @@ test('Android实际Gradle接收完整版本定义，缺字段和编译失败阻�
   if(product.startsWith('tuyul')){assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(join(f.work,'android.apk'),'utf8'),'compiled apk fixture');}
   else {
     assert.notEqual(result.status,0,'无SDK的合成APK必须由产品后置验真拒绝');
-    // 本仓先核对锁定来源，再验证SDK；两类真实拒绝均不得收口APK。
-    assert.match(result.stderr, /tuyufactory工程：第一方依赖禁止override|厂家SDK必须唯一解析/u);
+    // 缺SDK解析必须确定拒绝；不得把CLI重入或源码错误算作目标失败。
+    assert.match(result.stderr, /厂家SDK必须唯一解析/u);
+    assert.doesNotMatch(result.stderr, /固定入口参数无效/u);
     assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|does not provide an export/u);
     assert.equal(existsSync(join(f.work,'android.apk')), false);
   }
@@ -2787,15 +2788,16 @@ function verifySdkDependency(application, environment = process.env) {
   const original = resolve(dirname(fileURLToPath(import.meta.url)), '../app');
   const work = environment.TUYUFACTORY_WORK_DIR, platform = environment.TUYU_PLATFORM;
   if (!work || !platform) throw new Error('厂家SDK缺少当前产品平台工作根');
-  const dependencies = resolveFirstPartyDependencies(original, work);
-  const provider = dependencies.citizen_sdk;
-  const expected = join(application, '.source-packages/citizen_sdk');
-  verifyProject({ source: original, work, output: application, platform });
   const configFile = join(application, '.dart_tool/package_config.json');
   const config = JSON.parse(readFileSync(configFile, 'utf8'));
   if (!Array.isArray(config.packages)) throw new Error('厂家SDK解析列表无效');
   const entries = config.packages.filter(value => value.name === 'citizen_sdk');
   if (entries.length !== 1) throw new Error('厂家SDK必须唯一解析');
+  // 解析缺失先失败；成功分支仍完整验证唯一Git来源及本轮工程。
+  const dependencies = resolveFirstPartyDependencies(original, work);
+  const provider = dependencies.citizen_sdk;
+  const expected = join(application, '.source-packages/citizen_sdk');
+  verifyProject({ source: original, work, output: application, platform });
   const uri = new URL(entries[0].rootUri, pathToFileURL(configFile));
   if (uri.protocol !== 'file:' || realpathSync(fileURLToPath(uri)) !== expected
     || !lstatSync(expected).isDirectory() || lstatSync(expected).isSymbolicLink()) throw new Error('厂家SDK解析不属于本轮源码视图');
@@ -3155,7 +3157,7 @@ console.log(`已物化途遇厂家端独立运行包：${destination}`);
 }
 return {materialize};
 })();
-if(!(process.env.NODE_TEST_CONTEXT&&process.argv.length===2)&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){void runCLI().catch(error=>{console.error(error);process.exitCode=1;});}
+if(!(process.env.NODE_TEST_CONTEXT&&process.argv.length===2)&&!process.execArgv.some(value=>/^(?:-e|--eval(?:=|$)|--input-type(?:=|$))/u.test(value))&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){void runCLI().catch(error=>{console.error(error);process.exitCode=1;});}
 
 // 编译子进程只交付本轮明确输入。
 if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===import.meta.filename){

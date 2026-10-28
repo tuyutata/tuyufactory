@@ -99,14 +99,14 @@ Node 与 Yarn 由产品 Action 自行选择并用于实际打包；任务缓存�
 - 两者是独立设备上的独立 SDK 实例，本机钱包、轻节点状态和会话各自归属当前设备，不复制或共享秘密数据。
 - 正式发布使用 CitizenSDK Git 依赖并锁定明确提交；Host/Client 使用相同提交，不能残留本机 path override。Git 地址和提交须从权威 SDK 登记核实，不能照抄过时示例。
 - 只调用 SDK 公开接口，不修改、裁剪、替换或重复实现 SDK 内部功能；不增加产品侧 SDK wrapper，不提供只读或限制版替身。
-- 钱包秘密输入、生成、导入和安全确认由 CitizenSDK 自己负责，厂家端不读取助记词或私钥，不向 ERPNext Web 容器暴露 SDK 秘密或任意签名能力。
+- App仅临时承载用户主动输入和备份确认，SDK负责输入规则、生成、导入、派生和安全存储。厂家端不读取私钥、不持久化助记词或密码，不向ERPNext Web容器暴露秘密或任意签名能力。
 - CitizenSDK 自身必要的轻节点数据库、钱包安全存储和原生库必须保留。Client 不携带“厂家业务数据库”不等于禁止 SDK 自身持久化，不能借载荷隔离裁剪 SDK。
 - SDK 网络不可用与本地 ERP 服务可用性分别报告；不能因链网络暂不可用而关闭本地厂家业务。SDK 初始化能力不足不得使用假实现冒充成功。
 - SDK 需要改进时，只提出问题证据、需要的公开接口/平台能力、复现条件和验收标准，由 CitizenSDK 线程负责。这里不修改 SDK，也不以厂家端复制实现绕过。
 
 ### CitizenSDK 当前公开消费边界
 
-两端各自 `open()`，先订阅 `events` 再 `start()`，读取公开能力和钱包资料，正常退出等待 `stop()` 后 `close()`。Host 的 SDK 与 PostgreSQL/ERPNext 状态独立；钱包直接使用 SDK 安全 UI，不向 ERP 页面提供秘密或签名桥。
+两端各自 `open()`，先订阅 `events` 再 `start()`，读取公开能力和钱包资料，正常退出等待 `stop()` 后 `close()`。Host 的 SDK 与 PostgreSQL/ERPNext 状态独立；钱包交互只使用SDK公开无UI接口，共用App临时界面，不向ERP页面提供秘密或签名桥。
 
 Host macOS 身份为 `com.tuyufactory`，Client 为 `com.tuyufactory.client`；Windows 由编译期配置固定两者身份。用户确认 iOS/Android 同用 `com.tuyufactory.client`，对应工程已建立。剩余平台 SDK 原生投影及正式包载荷仍须完成；源码调用、Pod/CMake 配置不代表原生运行和八包验收。本次不修改 SDK。
 
@@ -442,7 +442,7 @@ Android application 的 icon 与 roundIcon 统一引用 @drawable/app_icon。既
 
 ### 分机钱包初始化入口
 
-分机由产品 Flutter 页面显示正式途遇 Logo、产品名称、中英文辅助文字及创建/导入入口，窄屏和横屏通过可滚动的限宽页面承载。页面不显示主机/分机品牌后缀，不增加助记词或派生密码输入。创建和导入直接调用 CitizenSdk.wallet.create/importWallet，秘密输入、可选派生密码与安全操作属于 SDK；调用完成后回读 getProfile，只有钱包公开资料已经提交才进入后续业务流程。商家主机现有扫码初始化完全不变。
+分机由产品Flutter页面显示正式Logo、产品名称、中英文辅助文字及钱包入口，窄屏和横屏使用可滚动限宽页面。首屏不显示秘密输入；用户主动进入钱包操作后，App只临时承载助记词/附加密码输入与备份确认。SDK通过prepareCreation、recoveryPhrase、commit、importWallet及result完成真实操作，所有输入校验、派生和持久化仅归SDK。完成后统一读取getState，未提交、恢复/清理或回读失败不能放行业务。原管理员扫码与签名协议不变。
 
 取消和认证取消依据 CitizenSdkErrorCode 分类，留在入口而不当作操作失败。真实失败仅显示产品通用提示，不直接显示 SDK 原始异常；操作中防止重复点击，更换 SDK 后丢弃旧会话的异步结果。商家未有钱包时不提前加载业务模式；厂家未有钱包时不开放业务界面，钱包就绪后才首次启动原有主机连接。钱包不代替上游员工账户及权限。
 
@@ -717,3 +717,18 @@ CitizenSDK来源由本产品pubspec.yaml与pubspec.lock的固定Git提交共同�
 
 本产品配置项统一为name、description、accessLevel、kind、format五个必填字段；不适用规则明确填写“不适用”。name严格使用两组大写字母和一个下划线，同名共用控制台唯一值，当前页仅汇总实际声明的使用产品。操作列固定写入/更换、查看、删除；保密查看保留生物识别。现有配置消费者随声明同步改名，官方工具/API字段保持官方名称，不新增旧名兼容或配置副本。
 描述文件使用TUYUFACTORY_PROFILE，format绑定真实iOS Bundle身份；不能将其它产品描述文件冒认成本产品已配置。
+
+
+## 第一方业务命名与固定合同
+
+本产品第一方产品身份属性统一为productId，值和主机、分机安装身份不变。六类本机共享账户表、全部字段及tuyu-account提交435e585bd59aabe5bec3d4ca21074abbae864b43维持固定合同；依赖、锁、扫码、签名及本机持久数据不因命名调整改变。
+
+
+### 第4步既有回归阻塞收口
+
+CitizenSDK直接依赖固定0e07a360813948830e39168edcc4dff88922dd8a；既有本机override仅保留停用注释，任何有效配置仍拒绝。模块eval导入不触发CLI；缺SDK解析先拒绝，成功分支保持完整来源检查。Linux源码回归核验当前产品入口和架构清单，空远端工作流不代表自动化验收通过。共享账户合同及原签名协议保持。
+
+
+### 钱包交互与SDK目录唯一来源
+
+App只负责临时输入、备份展示及用户确认；密码和助记词不进入业务持久化、日志或网络。输入规则、创建/导入/追加及持久化只归固定CitizenSDK，操作等待result，创建经prepareCreation、recoveryPhrase、commit及release完整生命周期。读取仅使用getState返回的目录事实，恢复/清理未完成时不把状态当成空钱包。厂家主机与分机复用既有shared/product.dart中的唯一钱包弹窗，页面不再保留钱包影子快照或计算派生序号。凭据按SDK挑战临时交付，取消、SDK替换与页面销毁须结束本次真实操作并释放资源。共享账户合同及原签名协议不变。

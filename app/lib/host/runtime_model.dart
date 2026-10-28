@@ -59,8 +59,11 @@ class FactoryRuntimeModel extends ChangeNotifier {
   int _operationGeneration = 0;
 
   Future<void> createAdministratorChallenge() async {
-    if (_disposed || _phase != FactoryRuntimePhase.needsAdministrator ||
-        _initializingAdministrator) return;
+    if (_disposed ||
+        _phase != FactoryRuntimePhase.needsAdministrator ||
+        _initializingAdministrator) {
+      return;
+    }
     final generation = _operationGeneration;
     _initializingAdministrator = true;
     administratorChallenge = null;
@@ -140,8 +143,10 @@ class FactoryRuntimeModel extends ChangeNotifier {
     required String response,
     String? name,
   }) async {
-    if (_disposed || _phase != FactoryRuntimePhase.needsAdministrator ||
-        _initializingAdministrator || administratorChallenge == null ||
+    if (_disposed ||
+        _phase != FactoryRuntimePhase.needsAdministrator ||
+        _initializingAdministrator ||
+        administratorChallenge == null ||
         response.trim().isEmpty) {
       return;
     }

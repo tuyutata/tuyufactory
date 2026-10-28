@@ -66,5 +66,17 @@
   "createChallenge": "Request administrator challenge",
   "administratorLogin": "Verify and log in",
   "instanceId": "Installation ID",
-  "certificateSha256": "TLS certificate SHA-256 fingerprint"
+  "certificateSha256": "TLS certificate SHA-256 fingerprint",
+  "walletWords": "Recovery word count",
+  "walletPassword": "Additional password (optional)",
+  "walletMnemonic": "Recovery phrase",
+  "walletBackup": "Back up recovery phrase",
+  "walletConfirmed": "I have backed up the recovery phrase and additional password",
+  "walletContinue": "Continue",
+  "walletCommit": "Confirm creation",
+  "walletCancel": "Cancel",
+  "walletPasswordInvalid": "The additional password does not meet wallet requirements.",
+  "walletMnemonicInvalid": "The recovery phrase does not match the selected word count or validation requirements.",
+  "walletRecovering": "Wallet recovery or cleanup is pending. Complete it and retry.",
+  "walletCredential": "Unlock wallet"
 }

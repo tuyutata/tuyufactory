@@ -59,7 +59,10 @@ function verifyGitDirectory(root) {
 }
 export function resolveFirstPartyDependencies(source, work) {
   verifyGitDirectory(source); verifyGitDirectory(work);
-  if (existsSync(join(source, 'pubspec_overrides.yaml')))
+  // 既有本机文件仅允许停用说明；任何有效YAML配置仍然拒绝。
+  const overrides = join(source, 'pubspec_overrides.yaml');
+  if (existsSync(overrides) && readFileSync(overrides, 'utf8').split(/\r?\n/u)
+      .some(line => line.trim() && !line.trimStart().startsWith('#')))
     fail('自动化第一方依赖禁止override');
   const manifest = readFileSync(join(source, 'pubspec.yaml'), 'utf8');
   if (/^    path:/mu.test(manifest)) fail('宿主直接依赖禁止源码外path来源');
@@ -501,6 +504,18 @@ test('固定Git源码转换只写本轮Pub元数据，声明锁和源文件保�
   assert.equal(lstatSync(entry).isFile(),true);
   assert.notEqual(lstatSync(entry).ino,lstatSync(join(f.provider,'lib/citizen_sdk.dart')).ino);
   assert.equal(realpathSync(entry),entry);assert.equal(readFileSync(entry,'utf8'),readFileSync(join(f.provider,'lib/citizen_sdk.dart'),'utf8'));
+});
+
+test('既有覆盖文件只允许停用注释，不接受任何有效配置', async t => {
+  const f = fixture(t), path = join(f.source, 'pubspec_overrides.yaml');
+  writeFileSync(path, '# 旧本机覆盖已停用。\n\n');
+  assert.equal(resolveFirstPartyDependencies(f.source, f.work).citizen_sdk.sha, f.sha);
+  const output = await createProject({ ...f, platform: 'ios' });
+  assert.equal(readFileSync(join(output, 'pubspec_overrides.yaml'), 'utf8'), '# 旧本机覆盖已停用。\n\n');
+  for (const text of ['dependency_overrides: {}', 'workspace: []', 'resolution: workspace', 'null']) {
+    writeFileSync(path, text + '\n');
+    assert.throws(() => resolveFirstPartyDependencies(f.source, f.work), /禁止override/u);
+  }
 });
 
 test('错误URL、锁SHA、脏Git、源码链接、path和override均在依赖解析边界拒绝', async t => {

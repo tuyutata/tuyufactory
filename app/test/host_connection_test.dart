@@ -27,7 +27,7 @@ String get _python =>
 String get _openssl =>
     Platform.environment['TUYUFACTORY_TEST_OPENSSL'] ?? 'openssl';
 String get _scripts =>
-    '${File('test/host_connection_test.dart').resolveSymbolicLinksSync().replaceAll('\\', '/').split('/app/test/').first}/scripts';
+    '${File('test/host_connection_test.dart').resolveSymbolicLinksSync().replaceAll('\\', '/').split('/app/test/').first}/native';
 
 FactoryHost _host({String? fingerprint}) => FactoryHost.fromJson({
   'product_id': 'tuyufactory',
@@ -92,15 +92,12 @@ Future<Directory> _temporary() async {
       (runner == null
           ? '${Directory.systemTemp.path}/tuyufactory-tests'
           : '$runner/tuyufactory-tests');
-  final normalized = path?.replaceAll('\\', '/');
-  final local = normalized != null && Directory(normalized).isAbsolute;
+  final normalized = path.replaceAll('\\', '/');
+  final local = Directory(normalized).isAbsolute;
   final remote =
-      normalized != null &&
       runner != null &&
       normalized.startsWith('${runner.replaceAll('\\', '/')}/');
-  if (path == null ||
-      normalized!.split('/').contains('..') ||
-      (!local && !remote)) {
+  if (normalized.split('/').contains('..') || (!local && !remote)) {
     throw StateError('Factory tests require their isolated work directory');
   }
   final directory = Directory(path);
@@ -587,18 +584,25 @@ void main() {
             sdk: null,
             capabilities: null,
             // 本用例验证钱包已经就绪之后的主机连接页面。
-            profile: CitizenWalletProfile(
-              walletIndex: 0,
-              masterAccountId: '0x${List.filled(64, '1').join()}',
-              origin: CitizenWalletOrigin.created,
-              createdAtMillis: BigInt.zero,
-              activeAccountId: '0x${List.filled(64, '1').join()}',
+            walletState: CitizenWalletState(
+              revision: BigInt.zero,
+              initializationState: CitizenWalletInitializationState.ready,
+              cleanupPending: false,
               accounts: const [],
+              hotProfile: CitizenWalletProfile(
+                walletName: 'Fixture wallet',
+                walletIndex: 0,
+                masterAccountId: '0x${List.filled(64, '1').join()}',
+                origin: CitizenWalletOrigin.created,
+                createdAtMillis: BigInt.zero,
+                activeAccountId: '0x${List.filled(64, '1').join()}',
+                accounts: const [],
+              ),
             ),
             sdkStarting: false,
             sdkError: null,
             onRetrySdk: () async {},
-            onWalletReady: () {},
+            onWalletReady: () async {},
           ),
         ),
       );

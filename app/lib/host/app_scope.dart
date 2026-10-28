@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
@@ -5,6 +6,7 @@ import 'package:citizen_sdk/citizen_sdk.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:tuyufactory/host/runtime_model.dart';
+import 'package:tuyufactory/shared/product.dart';
 
 /// 仅向厂家页面公布 SDK 的真实设备状态，不转发或重写任何 SDK 功能。
 final class FactoryCitizenState {
@@ -13,13 +15,17 @@ final class FactoryCitizenState {
     required this.retry,
     this.sdk,
     this.capabilities,
-    this.profile,
+    this.walletState,
+    required this.navigatorKey,
+    required this.refreshWallet,
     this.error,
   });
 
   final CitizenSdk? sdk;
   final CitizenCapabilitySnapshot? capabilities;
-  final CitizenWalletProfile? profile;
+  final CitizenWalletState? walletState;
+  final GlobalKey<NavigatorState> navigatorKey;
+  final Future<void> Function(CitizenSdk) refreshWallet;
   final bool starting;
   final String? error;
   final Future<void> Function() retry;
@@ -46,7 +52,9 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
   late final AppLifecycleListener _lifecycle;
   CitizenSdk? _sdk;
   CitizenCapabilitySnapshot? _capabilities;
-  CitizenWalletProfile? _profile;
+  CitizenWalletState? _walletState;
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  int _walletRead = 0;
   StreamSubscription<CitizenSdkEvent>? _events;
   Future<void>? _starting;
   Future<void>? _stopping;
@@ -95,6 +103,27 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
     }
   }
 
+  Future<Uint8List?> _requestCredential(
+    CitizenCredentialChallenge challenge,
+  ) async {
+    final context = _navigatorKey.currentContext;
+    if (!mounted || context == null) return null;
+    return requestWalletCredential(context, challenge);
+  }
+
+  Future<void> _refreshWallet(CitizenSdk sdk) async {
+    final read = ++_walletRead;
+    try {
+      final state = await sdk.wallet.getState().result;
+      if (!mounted || !identical(sdk, _sdk) || read != _walletRead) return;
+      setState(() => _walletState = state);
+    } on Object {
+      if (!mounted || !identical(sdk, _sdk) || read != _walletRead) return;
+      setState(() => _walletState = null);
+      rethrow;
+    }
+  }
+
   Future<void> _openAndStartSdk() async {
     if (mounted) {
       setState(() {
@@ -105,7 +134,7 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
     CitizenSdk? sdk;
     StreamSubscription<CitizenSdkEvent>? events;
     try {
-      sdk = await CitizenSdk.open();
+      sdk = await CitizenSdk.open(credentialProvider: _requestCredential);
       // 订阅必须先于 start，避免漏掉启动阶段的生命周期与能力事件。
       events = sdk.events.listen(
         _handleSdkEvent,
@@ -117,7 +146,7 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
       _events = events;
       await sdk.start();
       final capabilities = await sdk.getCapabilities();
-      final profile = await sdk.wallet.getProfile();
+      await _refreshWallet(sdk);
       if (!mounted) {
         if (sdk.lifecycle == CitizenSdkLifecycle.running) await sdk.stop();
         await sdk.close();
@@ -128,7 +157,7 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
       }
       setState(() {
         _capabilities = capabilities;
-        _profile = profile;
+
         _error = null;
       });
     } on Object catch (error) {
@@ -156,7 +185,8 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
     _events = null;
     _sdk = null;
     _capabilities = null;
-    _profile = null;
+    _walletRead++;
+    _walletState = null;
   }
 
   void _handleSdkEvent(CitizenSdkEvent event) {
@@ -191,7 +221,8 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
       _events = null;
       _sdk = null;
       _capabilities = null;
-      _profile = null;
+      _walletRead++;
+      _walletState = null;
     } on Object {
       _stopping = null;
       rethrow;
@@ -207,7 +238,9 @@ final class _TuyuFactoryScopeState extends State<TuyuFactoryScope> {
           value: FactoryCitizenState(
             sdk: _sdk,
             capabilities: _capabilities,
-            profile: _profile,
+            walletState: _walletState,
+            navigatorKey: _navigatorKey,
+            refreshWallet: _refreshWallet,
             starting: _starting != null,
             error: _error,
             retry: _startSdk,

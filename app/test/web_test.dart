@@ -393,21 +393,19 @@ class _Tls {
         (runner == null
             ? '${Directory.systemTemp.path}/tuyufactory-tests'
             : '$runner/tuyufactory-tests');
-    final normalized = parent?.replaceAll('\\', '/');
-    final local = normalized != null && Directory(normalized).isAbsolute;
+    final normalized = parent.replaceAll('\\', '/');
+    final local = Directory(normalized).isAbsolute;
     final remote =
-        normalized != null &&
         runner != null &&
         normalized.startsWith('${runner.replaceAll('\\', '/')}/');
-    if (parent == null ||
-        (!local && !remote) ||
+    if ((!local && !remote) ||
         normalized.split('/').any((part) => part == '..' || part == '.')) {
       throw StateError('Test work directory required');
     }
     await Directory(parent).create(recursive: true);
     final root = await Directory(parent).createTemp('web-');
     final scripts =
-        '${File('test/web_test.dart').resolveSymbolicLinksSync().replaceAll('\\', '/').split('/app/test/').first}/scripts';
+        '${File('test/web_test.dart').resolveSymbolicLinksSync().replaceAll('\\', '/').split('/app/test/').first}/native';
     final result = await Process.run(
       Platform.environment['TUYUFACTORY_TEST_PYTHON'] ??
           (Platform.isWindows ? 'python' : 'python3'),

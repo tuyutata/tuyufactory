@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -194,4 +195,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get certificateSha256 => 'TLS 证书 SHA-256 指纹';
+
+  @override
+  String get walletWords => '助记词数量';
+
+  @override
+  String get walletPassword => '附加密码（可留空）';
+
+  @override
+  String get walletMnemonic => '助记词';
+
+  @override
+  String get walletBackup => '备份助记词';
+
+  @override
+  String get walletConfirmed => '我已妥善备份助记词及附加密码';
+
+  @override
+  String get walletContinue => '继续';
+
+  @override
+  String get walletCommit => '确认创建';
+
+  @override
+  String get walletCancel => '取消';
+
+  @override
+  String get walletPasswordInvalid => '附加密码不符合钱包要求。';
+
+  @override
+  String get walletMnemonicInvalid => '助记词不符合所选词数或校验要求。';
+
+  @override
+  String get walletRecovering => '钱包正在恢复或清理，请完成后重试。';
+
+  @override
+  String get walletCredential => '解锁钱包';
 }

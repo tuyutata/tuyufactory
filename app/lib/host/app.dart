@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:tuyufactory/host/app_scope.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tuyufactory/host/factory_home_page.dart';
 import 'package:tuyufactory/shared/l10n/app_localizations.dart';
@@ -11,6 +13,7 @@ class TuyuFactoryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: context.read<FactoryCitizenState>().navigatorKey,
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [

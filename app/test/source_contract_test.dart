@@ -48,6 +48,7 @@ void main() {
         'client/pinned_https_client.dart',
         'client/relay.dart',
         'client/web.dart',
+        'shared/product.dart',
         'shared/l10n/app_localizations.dart',
         'shared/l10n/app_localizations_zh.dart',
         'shared/l10n/app_localizations_en.dart',
@@ -168,6 +169,9 @@ Set<String> _reachable(Map<String, String> sources, String entry, String role) {
             'client/relay.dart',
             'client/web.dart',
           };
+          // SDK凭据及钱包界面仅使用标准字节/UTF-8，不向分机开放IO或FFI。
+          const walletFiles = {'client/app.dart', 'shared/product.dart'};
+          const walletLibraries = {'dart:typed_data', 'dart:convert'};
           const networkLibraries = {
             'dart:io',
             'dart:convert',
@@ -176,7 +180,9 @@ Set<String> _reachable(Map<String, String> sources, String entry, String role) {
           if (role == 'client' &&
               !clientDartLibraries.contains(target) &&
               !(networkFiles.contains(path) &&
-                  networkLibraries.contains(target))) {
+                  networkLibraries.contains(target)) &&
+              !(walletFiles.contains(path) &&
+                  walletLibraries.contains(target))) {
             throw StateError('分机未登记的 Dart 系统依赖：$target');
           }
         } else if (target.startsWith('package:tuyufactory/')) {

@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -208,4 +209,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get certificateSha256 => 'TLS certificate SHA-256 fingerprint';
+
+  @override
+  String get walletWords => 'Recovery word count';
+
+  @override
+  String get walletPassword => 'Additional password (optional)';
+
+  @override
+  String get walletMnemonic => 'Recovery phrase';
+
+  @override
+  String get walletBackup => 'Back up recovery phrase';
+
+  @override
+  String get walletConfirmed =>
+      'I have backed up the recovery phrase and additional password';
+
+  @override
+  String get walletContinue => 'Continue';
+
+  @override
+  String get walletCommit => 'Confirm creation';
+
+  @override
+  String get walletCancel => 'Cancel';
+
+  @override
+  String get walletPasswordInvalid =>
+      'The additional password does not meet wallet requirements.';
+
+  @override
+  String get walletMnemonicInvalid =>
+      'The recovery phrase does not match the selected word count or validation requirements.';
+
+  @override
+  String get walletRecovering =>
+      'Wallet recovery or cleanup is pending. Complete it and retry.';
+
+  @override
+  String get walletCredential => 'Unlock wallet';
 }

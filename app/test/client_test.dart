@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tuyufactory/client/app.dart';
+import 'package:tuyufactory/shared/l10n/app_localizations_en.dart';
+import 'package:tuyufactory/shared/l10n/app_localizations_zh.dart';
 
 void main() {
   testWidgets('分机可独立装配，不需要主机原生库或运行模型', (tester) async {
@@ -44,19 +46,26 @@ void main() {
           ClientApp(locale: locale, startCitizenSdk: false, connectHost: false),
         );
         await tester.pumpAndSettle();
-        expect(find.text(title), findsOneWidget);
-        expect(find.textContaining(status), findsOneWidget);
+        final local = locale.languageCode == 'en'
+            ? AppLocalizationsEn()
+            : AppLocalizationsZh();
+        expect(find.text(local.walletTitle), findsOneWidget);
+        expect(
+          find.textContaining(local.citizenSdkUnavailable),
+          findsOneWidget,
+        );
+        expect(find.text(title), findsNothing);
+        expect(find.textContaining(status), findsNothing);
+        expect(find.byKey(const ValueKey('create-wallet')), findsNothing);
         expect(find.byType(TextField), findsNothing);
         expect(
           find.widgetWithText(FilledButton, '重新启动 CitizenSDK'),
-          locale.languageCode == 'en' ? findsNothing : findsOneWidget,
+          findsOneWidget,
         );
-        if (locale.languageCode == 'en') {
-          expect(
-            find.widgetWithText(FilledButton, 'Restart CitizenSDK'),
-            findsOneWidget,
-          );
-        }
+        expect(
+          find.widgetWithText(FilledButton, 'Restart CitizenSDK'),
+          findsOneWidget,
+        );
         expect(find.text('重新启动'), findsNothing);
         expect(find.text('初始化途遇厂家端管理员'), findsNothing);
         expect(find.textContaining('厂家本地系统已经就绪'), findsNothing);

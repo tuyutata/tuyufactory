@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:citizen_sdk/citizen_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:tuyufactory/client/host_connection.dart';
+import 'package:tuyufactory/shared/product.dart';
 import 'package:tuyufactory/client/web.dart';
 import 'package:tuyufactory/shared/l10n/app_localizations.dart';
 import 'package:tuyufactory/shared/l10n/app_localizations_en.dart';
@@ -11,7 +14,7 @@ class ConnectionPage extends StatefulWidget {
     required this.connection,
     required this.sdk,
     required this.capabilities,
-    required this.profile,
+    required this.walletState,
     required this.sdkStarting,
     required this.sdkError,
     required this.onRetrySdk,
@@ -22,11 +25,11 @@ class ConnectionPage extends StatefulWidget {
   final CitizenSdk? sdk;
   final HostConnection connection;
   final CitizenCapabilitySnapshot? capabilities;
-  final CitizenWalletProfile? profile;
+  final CitizenWalletState? walletState;
   final bool sdkStarting;
   final String? sdkError;
   final Future<void> Function() onRetrySdk;
-  final VoidCallback onWalletReady;
+  final Future<void> Function() onWalletReady;
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -43,27 +46,29 @@ final class _ConnectionPageState extends State<ConnectionPage> {
 
   @override
   void dispose() {
+    if (!_walletGone.isCompleted) _walletGone.complete();
     _web.dispose();
     super.dispose();
   }
 
-  CitizenWalletProfile? _walletProfile;
+  Completer<void> _walletGone = Completer<void>();
   bool _walletOperationRunning = false;
+  bool _readFailed = false;
   String? _walletError;
 
   @override
   void didUpdateWidget(ConnectionPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(widget.sdk, oldWidget.sdk)) {
-      _walletProfile = null;
+      _walletGone.complete();
+      _walletGone = Completer<void>();
       _walletError = null;
+      _readFailed = false;
       _walletOperationRunning = false;
     }
   }
 
-  Future<void> _runWalletOperation(
-    Future<CitizenWalletProfile> Function() operation,
-  ) async {
+  Future<void> _runWalletOperation(WalletAction? action) async {
     final sdk = widget.sdk;
     if (_walletOperationRunning || sdk == null || widget.sdkStarting) return;
     setState(() {
@@ -71,24 +76,24 @@ final class _ConnectionPageState extends State<ConnectionPage> {
       _walletError = null;
     });
     try {
-      await operation();
-      if (!mounted || !identical(sdk, widget.sdk)) return;
-      // 只在 SDK 回读到已提交的公开资料后放行业务，不接收或保存钱包秘密。
-      final profile = await sdk.wallet.getProfile();
-      if (!mounted || !identical(sdk, widget.sdk)) return;
-      if (profile == null) throw StateError('Wallet is not ready');
-      setState(() => _walletProfile = profile);
-      widget.onWalletReady();
-    } on CitizenSdkException catch (error) {
-      if (!mounted || !identical(sdk, widget.sdk)) return;
-      final cancelled = error.code == CitizenSdkErrorCode.cancelled ||
-          error.code == CitizenSdkErrorCode.authenticationCancelled;
-      if (!cancelled) {
-        setState(() => _walletError = AppLocalizations.of(context).walletOperationFailed);
+      if (action != null) {
+        final committed = await showWalletDialog(
+          context,
+          sdk,
+          action,
+          _walletGone.future,
+        );
+        if (!mounted || !identical(sdk, widget.sdk) || !committed) return;
       }
+      _readFailed = true;
+      await widget.onWalletReady();
+      if (mounted && identical(sdk, widget.sdk)) _readFailed = false;
     } on Object {
       if (mounted && identical(sdk, widget.sdk)) {
-        setState(() => _walletError = AppLocalizations.of(context).walletOperationFailed);
+        setState(
+          () =>
+              _walletError = AppLocalizations.of(context).walletOperationFailed,
+        );
       }
     } finally {
       if (mounted && identical(sdk, widget.sdk)) {
@@ -99,78 +104,167 @@ final class _ConnectionPageState extends State<ConnectionPage> {
 
   Widget _bilingual(String zh, String en, {bool heading = false}) {
     final chinese = Localizations.localeOf(context).languageCode == 'zh';
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(chinese ? zh : en, textAlign: TextAlign.center,
-        style: heading ? Theme.of(context).textTheme.headlineSmall
-          ?.copyWith(fontWeight: FontWeight.w700) : null),
-      const SizedBox(height: 2),
-      Text(chinese ? en : zh, textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant)),
-    ]);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          chinese ? zh : en,
+          textAlign: TextAlign.center,
+          style: heading
+              ? Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)
+              : null,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          chinese ? en : zh,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _walletEntry() {
     final zh = AppLocalizationsZh();
     final en = AppLocalizationsEn();
-    final available = widget.sdk != null && widget.capabilities != null &&
+    final available =
+        widget.sdk != null &&
+        widget.capabilities != null &&
         widget.sdkError == null;
-    final busy = widget.sdkStarting || _walletOperationRunning;
-    return Scaffold(body: DecoratedBox(
-      decoration: const BoxDecoration(gradient: LinearGradient(
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-        colors: [Color(0xFFEAF3EF), Color(0xFFF8FAF8)],
-      )),
-      child: SafeArea(child: Center(child: SingleChildScrollView(
-        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(padding: const EdgeInsets.all(24), child: Card(
-            child: Padding(padding: const EdgeInsets.all(28), child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: ClipRRect(borderRadius: BorderRadius.circular(20),
-                  child: Image.asset('tuyu_logo.png', width: 96,
-                    height: 96, fit: BoxFit.contain, excludeFromSemantics: true))),
-                const SizedBox(height: 16),
-                _bilingual(zh.appTitle, en.appTitle, heading: true),
-                const SizedBox(height: 20),
-                _bilingual(zh.walletTitle, en.walletTitle),
-                const SizedBox(height: 12),
-                _bilingual(zh.walletSubtitle, en.walletSubtitle),
-                const SizedBox(height: 24),
-                if (busy) const Center(child: CircularProgressIndicator())
-                else if (!available) ...[
-                  _bilingual(zh.citizenSdkUnavailable, en.citizenSdkUnavailable),
-                  const SizedBox(height: 12),
-                  FilledButton(key: const ValueKey('retry-citizen-sdk'),
-                    onPressed: widget.onRetrySdk,
-                    child: _bilingual(zh.citizenSdkRetry, en.citizenSdkRetry)),
-                ] else ...[
-                  if (_walletError != null) ...[
-                    _bilingual(zh.walletOperationFailed, en.walletOperationFailed),
-                    const SizedBox(height: 12),
-                  ],
-                  FilledButton(key: const ValueKey('create-wallet'),
-                    onPressed: () => _runWalletOperation(widget.sdk!.wallet.create),
-                    child: _bilingual(zh.walletCreate, en.walletCreate)),
-                  const SizedBox(height: 12),
-                  OutlinedButton(key: const ValueKey('import-wallet'),
-                    onPressed: () => _runWalletOperation(widget.sdk!.wallet.importWallet),
-                    child: _bilingual(zh.walletImport, en.walletImport)),
-                ],
-              ],
-            )),
-          )),
+    final busy = widget.sdkStarting;
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFEAF3EF), Color(0xFFF8FAF8)],
+          ),
         ),
-      ))),
-    ));
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'tuyu_logo.png',
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.contain,
+                                excludeFromSemantics: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _bilingual(zh.appTitle, en.appTitle, heading: true),
+                          const SizedBox(height: 20),
+                          _bilingual(zh.walletTitle, en.walletTitle),
+                          const SizedBox(height: 12),
+                          _bilingual(zh.walletSubtitle, en.walletSubtitle),
+                          const SizedBox(height: 24),
+                          if (busy)
+                            const Center(child: CircularProgressIndicator())
+                          else if (!available) ...[
+                            _bilingual(
+                              zh.citizenSdkUnavailable,
+                              en.citizenSdkUnavailable,
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              key: const ValueKey('retry-citizen-sdk'),
+                              onPressed: widget.onRetrySdk,
+                              child: _bilingual(
+                                zh.citizenSdkRetry,
+                                en.citizenSdkRetry,
+                              ),
+                            ),
+                          ] else if (walletBlocked(widget.walletState) ||
+                              _readFailed ||
+                              widget.walletState == null) ...[
+                            Text(
+                              _readFailed || widget.walletState == null
+                                  ? AppLocalizations.of(context)
+                                        .walletOperationFailed
+                                  : AppLocalizations.of(context)
+                                        .walletRecovering,
+                            ),
+                            TextButton(
+                              onPressed: _walletOperationRunning
+                                  ? null
+                                  : () => _runWalletOperation(null),
+                              child: Text(zh.citizenSdkRetry),
+                            ),
+                          ] else ...[
+                            if (_walletError != null) ...[
+                              _bilingual(
+                                zh.walletOperationFailed,
+                                en.walletOperationFailed,
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            FilledButton(
+                              key: const ValueKey('create-wallet'),
+                              onPressed: () =>
+                                  _runWalletOperation(WalletAction.create),
+                              child: _bilingual(
+                                zh.walletCreate,
+                                en.walletCreate,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              key: const ValueKey('import-wallet'),
+                              onPressed: () => _runWalletOperation(
+                                WalletAction.importWallet,
+                              ),
+                              child: _bilingual(
+                                zh.walletImport,
+                                en.walletImport,
+                              ),
+                            ),
+                            TextButton(
+                              key: const ValueKey('retry-wallet-check'),
+                              onPressed: _walletOperationRunning
+                                  ? null
+                                  : () => _runWalletOperation(null),
+                              child: Text(zh.citizenSdkRetry),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final profile = _walletProfile ?? widget.profile;
-    if (profile == null || widget.sdkStarting) return _walletEntry();
+    if (!walletReady(widget.walletState) || widget.sdkStarting) {
+      return _walletEntry();
+    }
     return Scaffold(
       appBar: AppBar(title: Text(localizations.appTitle)),
       body: SafeArea(
@@ -223,25 +317,12 @@ final class _ConnectionPageState extends State<ConnectionPage> {
                         runSpacing: 12,
                         children: [
                           OutlinedButton(
-                              onPressed: _walletOperationRunning
-                                  ? null
-                                  : () async {
-                                      final nextIndex =
-                                          profile.accounts
-                                              .map((account) => account.index)
-                                              .fold<int>(
-                                                -1,
-                                                (a, b) => a > b ? a : b,
-                                              ) +
-                                          1;
-                                      await _runWalletOperation(
-                                        () => widget.sdk!.wallet.addAccounts([
-                                          nextIndex,
-                                        ]),
-                                      );
-                                    },
-                              child: Text(localizations.walletAddAccount),
-                            ),
+                            onPressed: _walletOperationRunning
+                                ? null
+                                : () => _runWalletOperation(WalletAction.add),
+
+                            child: Text(localizations.walletAddAccount),
+                          ),
                         ],
                       ),
                       if (_walletError case final error?) ...[
