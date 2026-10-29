@@ -609,12 +609,12 @@ function bootstrapEnvironment(environment=process.env){
  return workEnvironment(Object.fromEntries(names.filter(key=>typeof environment[key]==='string').map(key=>[key,environment[key]])));
 }
 
-// 公开本机编译入口只交付产物和本产品工具；调用方消费结束才清理现场。
+// 本机编译只复用已有离线资源，交付产物和本产品工具；调用方消费结束才清理现场。
 export async function compile(platform) {
  const work=fixedWork('build/'+platform);
  const cancellation=new AbortController();
  for(const name of ['SIGINT','SIGTERM'])process.once(name,()=>cancellation.abort());
- await execute(platform,work,{}, {signal:cancellation.signal,consume:async(result,receipt)=>{
+  await execute(platform,work,{}, {offline:true,signal:cancellation.signal,consume:async(result,receipt)=>{
   const declared=platformContract(platform);if(declared.files.length!==1)fail('本机编译没有唯一可安装产物');
   const env=resourceEnvironment(platform,work,receipt,process.env),tools={};
   if(platform.endsWith('android')){
