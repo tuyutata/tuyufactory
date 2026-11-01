@@ -610,6 +610,32 @@ function bootstrapEnvironment(environment=process.env){
 }
 
 // 本机编译只复用已有离线资源，交付产物和本产品工具；调用方消费结束才清理现场。
+// 本产品交付实际Apple代码目标及已有权限，安装器不推定产品结构。
+export function appleSigning(app,work) {
+ if(!lstatSync(app).isDirectory()){
+  const output=join(work,'signing-app');mkdirSync(output);
+  const value=spawnSync('/usr/bin/ditto',['-x','-k',app,output],{encoding:'utf8'});
+  if(value.error||value.status!==0)throw Error('展开本产品Apple签名产物失败');
+  const apps=readdirSync(output).filter(name=>name.endsWith('.app'));if(apps.length!==1)throw Error('本产品Apple归档未交付唯一App');
+  app=join(output,apps[0]);
+ }
+ const paths=[];
+ const visit=directory=>{for(const name of readdirSync(directory).sort()){
+  const file=join(directory,name),info=lstatSync(file);if(info.isSymbolicLink())continue;
+  if(info.isDirectory()){visit(file);if(/\.(?:framework|appex|app)$/u.test(name))paths.push(file);}
+  else if(info.isFile()){const bytes=readFileSync(file);if(bytes.length>=4&&[0xfeedfacf,0xcffaedfe,0xcafebabe,0xbebafeca].includes(bytes.readUInt32LE(0)))paths.push(file);}
+ }};
+ visit(app);paths.push(app);
+ return paths.map((file,index)=>{
+  const value=spawnSync('/usr/bin/codesign',['--display','--entitlements',':-',file],{encoding:'utf8',env:{...process.env,LC_ALL:'C'}});
+  if(value.error)throw value.error;
+  if(value.status!==0&&!value.stderr.includes('code object is not signed at all'))throw Error('读取产品签名权限失败：'+file);
+  let entitlements=null;
+  if(value.status===0&&value.stdout.trim()){entitlements=join(work,'signing-'+index+'.plist');writeFileSync(entitlements,value.stdout);}
+  return {path:file===app?'.':relative(app,file).split(sep).join('/'),entitlements};
+ });
+}
+
 export async function compile(platform) {
  const work=fixedWork('build/'+platform);
  const cancellation=new AbortController();
@@ -624,7 +650,7 @@ export async function compile(platform) {
     apksigner:join(env.ANDROID_HOME,...definitions[0].path.split(';'),'apksigner'),
     apkanalyzer:join(dirname(receipt.tools['android-sdk'].path),'apkanalyzer')});
   }
-  process.stdout.write('TATA_COMPILE '+JSON.stringify({schema:1,product_id:product,platform,work,artifact:result.files[0].path,tools})+'\n');
+  process.stdout.write('TATA_COMPILE '+JSON.stringify({schema:1,product_id:product,platform,work,artifact:result.files[0].path,tools,signing:platform.endsWith('macos')||platform.endsWith('ios')?appleSigning(result.files[0].path,work):[]})+'\n');
   // EOF只表示消费完成；取消保持编译器原有真实退出及清场规则。
   for await(const part of process.stdin){if(part.length)fail('编译消费通道只接受EOF');}
   cancellation.signal.throwIfAborted();
@@ -3172,5 +3198,26 @@ if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2&&process.argv[1]===imp
   assert.equal(child.error,undefined);assert.equal(child.status,0,child.stderr);
   assert.deepEqual(JSON.parse(child.stdout),{sdk:input.CITIZENSDK_PACKAGE});
   assert.equal(input.NODE_OPTIONS,'--require=foreign');assert.equal(bootstrapEnvironment({}).CITIZENSDK_PACKAGE,undefined);
+ });
+}
+
+// 本产品回执仅交付自己的编译目标，不依赖控制台源码。
+if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2){
+ const {test}=await import('node:test'),{default:assert}=await import('node:assert/strict');
+ test('Apple签名交付保留实际代码权限并忽略资源链接',{skip:process.platform!=='darwin'},async()=>{
+  const fs=await import('node:fs');const parent=join(root,'target/test');fs.mkdirSync(parent,{recursive:true});const work=fs.mkdtempSync(join(parent,'signing-'));
+  try{
+   const app=join(work,'Fixture.app');fs.mkdirSync(join(app,'Contents/MacOS'),{recursive:true});fs.mkdirSync(join(app,'Contents/Frameworks'));
+   const input=join(work,'main.c');fs.writeFileSync(input,'int main(void){return 0;}');
+   let value=spawnSync('/usr/bin/clang',[input,'-o',join(app,'Contents/MacOS/Fixture')],{encoding:'utf8'});assert.equal(value.status,0,value.stderr);
+   fs.writeFileSync(join(app,'Contents/Info.plist'),'<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>org.fixture.generic</string><key>CFBundleExecutable</key><string>Fixture</string></dict></plist>');
+   const rights=join(work,'rights.plist');fs.writeFileSync(rights,'<?xml version="1.0"?><plist version="1.0"><dict><key>com.apple.security.cs.allow-jit</key><true/></dict></plist>');
+   value=spawnSync('/usr/bin/codesign',['--force','--sign','-','--entitlements',rights,app],{encoding:'utf8'});assert.equal(value.status,0,value.stderr);
+   fs.symlinkSync(join(app,'Contents/MacOS/Fixture'),join(app,'linked'));
+   const plan=appleSigning(app,work);assert.equal(plan.at(-1).path,'.');assert.match(fs.readFileSync(plan.at(-1).entitlements,'utf8'),/allow-jit/u);
+   assert.ok(plan.some(item=>item.path==='Contents/MacOS/Fixture'));assert.ok(plan.every(item=>item.path!=='linked'));
+   const archive=join(work,'ios.app.zip');value=spawnSync('/usr/bin/ditto',['-c','-k','--keepParent',app,archive],{encoding:'utf8'});assert.equal(value.status,0,value.stderr);
+   const zipped=appleSigning(archive,work);assert.equal(zipped.at(-1).path,'.');assert.match(fs.readFileSync(zipped.at(-1).entitlements,'utf8'),/allow-jit/u);
+  }finally{fs.rmSync(work,{recursive:true,force:true});}
  });
 }
