@@ -13,7 +13,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // 两种模式都只在本轮工作根改写Flutter消费视图，宿主原始声明与锁保持原字节。
 const firstPartyRepositories = Object.freeze({
   citizen_sdk: 'https://github.com/crcfrcn/citizensdk.git',
-  tatachat_sdk: 'https://github.com/tuyutata/tatachatsdk.git',
 });
 const productRoot=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 function dependencyBlock(text, name) {
@@ -315,15 +314,14 @@ export async function createProject(options, environment = process.env, signal) 
     // 厂家原工程无Wrapper声明；输出只使用本产品明确锁定的既有统一版本。
     if (p.platform === 'android') writeFileSync(join(p.output, 'android/gradle/wrapper/gradle-wrapper.properties'),
       'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-9.1.0-bin.zip\ndistributionSha256Sum=a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806\n');
-    // 宿主先验真Git原件，再调用各SDK唯一公开布局入口；只改写本轮Pub元数据副本。
+    // 宿主先验真Git原件，再调用 CitizenSDK 唯一公开消费入口；只改写本轮Pub元数据副本。
     const dependencies = resolveFirstPartyDependencies(p.source, p.work), views = {};
     for (const [name, item] of Object.entries(dependencies)) {
       const target = join(p.output, '.source-packages', name);
-      const api = await import(pathToFileURL(join(item.root, 'scripts',name==='citizen_sdk'?'build.mjs':'release.mjs')).href);
-      if(typeof api[name==='citizen_sdk'?'consume':'createFlutterSourceView']!=='function')fail('SDK缺少当前完整交付入口');
+      const api = await import(pathToFileURL(join(item.root, 'scripts','build.mjs')).href);
+      if(typeof api.consume!=='function')fail('SDK缺少当前完整交付入口');
       mkdirSync(dirname(target), { recursive: true });
-      if(name==='citizen_sdk')await api.consume({directory:environment.CITIZENSDK_PACKAGE,sourceSha:item.sha,output:target,signal});
-      else await api.createFlutterSourceView(item.root, target);
+      await api.consume({directory:environment.CITIZENSDK_PACKAGE,sourceSha:item.sha,output:target,signal});
       views[name] = target;
     }
     for (const [name, value] of Object.entries(projectedPubMetadata(p.source, dependencies, views))) {

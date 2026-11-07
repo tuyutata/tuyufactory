@@ -257,7 +257,7 @@ const osPlatform=platform=>platform.includes('linux-')?'linux':platform.replace(
 export function lockedSources() {
  const source=sourceRoot(),path=join(source,'pubspec.yaml');if(!existsSync(path))return [];
  const manifest=readFileSync(path,'utf8'),lock=readFileSync(join(source,'pubspec.lock'),'utf8'),result=[];
- for(const name of ['citizen_sdk','tatachat_sdk']) {
+ for(const name of ['citizen_sdk']) {
   const block=text=>[...text.matchAll(new RegExp('^  '+name+':\\r?\\n(?: {4,}[^\\n]*\\n|[ \\t]*\\n)+','gm'))];
   const a=block(manifest),b=block(lock);if(!a.length)continue;
   if(a.length!==1||b.length!==1)fail('Git来源记录不唯一');
@@ -288,7 +288,6 @@ export async function copyBuildOriginal(url,sha256,destination,environment=proce
 export function requirements(platform,work) {
  checkWork(work);const declared=platformContract(platform);
  const locks=declared.locks.map(value=>({...value})),sources=lockedSources(),archives=runtimeArchives(platform);
- for(const source of sources){if(source.name==='citizen_sdk')continue;const packageRoot=join(work,'git-sources',source.name);if(existsSync(packageRoot))locks.push({ecosystem:'cargo',path:'native/Cargo.lock',source_package:source.name});}
  // Apple依赖方式由本产品源码决定；有Podfile就必须有原始锁，纯SwiftPM无需CocoaPods。
  const apple=platform.endsWith('ios')?'ios':platform.endsWith('macos')?'macos':null;
  if(apple){const base=sourceRoot(),pod=join(base,apple,'Podfile'),lock=join(base,apple,'Podfile.lock');
