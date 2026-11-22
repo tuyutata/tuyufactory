@@ -1,3 +1,5 @@
+// 启动厂家主机应用并创建本机原生运行时。
+
 import 'package:flutter/widgets.dart';
 import 'package:tuyufactory/host/app.dart';
 import 'package:tuyufactory/host/app_scope.dart';

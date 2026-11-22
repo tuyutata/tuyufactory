@@ -1,4 +1,5 @@
-# This file controls Flutter-level build steps. It should not be edited.
+# 定义厂家Linux Flutter引擎及官方工具生成步骤。
+
 cmake_minimum_required(VERSION 3.10)
 
 set(EPHEMERAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ephemeral")

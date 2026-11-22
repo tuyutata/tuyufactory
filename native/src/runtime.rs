@@ -1,3 +1,5 @@
+//! 定义厂家框架和运行组件的固定能力合同。
+
 use serde::Serialize;
 
 pub const PRODUCT_ID: &str = "tuyufactory";

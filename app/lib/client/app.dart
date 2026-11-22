@@ -1,3 +1,5 @@
+// 装配厂家分机钱包和SDK生命周期，钱包就绪后启动主机连接。
+
 import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;

@@ -1,3 +1,5 @@
+//! 验证厂家初始化与管理员管理复用唯一途遇账户服务。
+
 use tuyufactory_native::{account_contract, account_service};
 use uuid::Uuid;
 

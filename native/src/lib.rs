@@ -1,3 +1,5 @@
+//! 通过FFI暴露厂家运行时、管理员和网关操作，管理返回字符串内存。
+
 mod account;
 mod error;
 mod gateway;

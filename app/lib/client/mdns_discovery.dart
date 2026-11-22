@@ -1,3 +1,5 @@
+// 发现并解析厂家mDNS公告，校验公开身份和多接口响应一致性。
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

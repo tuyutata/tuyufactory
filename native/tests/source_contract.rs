@@ -1,3 +1,5 @@
+//! 验证厂家上游源码锁定、产品隔离及各Linux架构构建声明。
+
 use std::{fs, path::PathBuf};
 
 fn project_root() -> PathBuf {

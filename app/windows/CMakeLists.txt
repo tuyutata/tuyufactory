@@ -1,4 +1,5 @@
-# Project-level configuration.
+# 选择厂家Windows主机或分机目标，装配插件和安装资源。
+
 cmake_minimum_required(VERSION 3.14)
 project(tuyufactory LANGUAGES CXX)
 

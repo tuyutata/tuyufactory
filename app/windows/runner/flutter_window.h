@@ -1,3 +1,5 @@
+// 声明厂家Windows Flutter窗口及其引擎与消息处理接口。
+
 #ifndef RUNNER_FLUTTER_WINDOW_H_
 #define RUNNER_FLUTTER_WINDOW_H_
 

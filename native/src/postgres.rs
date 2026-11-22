@@ -1,3 +1,5 @@
+//! 初始化并监督本地PostgreSQL实例，构造受控连接和进程参数。
+
 use std::fs::OpenOptions;
 use std::future::Future;
 use std::io::Write;

@@ -1,3 +1,5 @@
+// 验证发现确认、信任持久化、固定主机恢复及真实TLS失败边界。
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

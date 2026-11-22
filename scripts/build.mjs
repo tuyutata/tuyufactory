@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// 本产品独立拥有资源需求、工程准备与编译；公开回执仅提供验真资源，不提供执行命令。
+// 准备厂家主机和分机工程及运行依赖，编译各平台并装配交付产物。
+
 import {spawn,spawnSync} from 'node:child_process';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {rmSync,rmdirSync,chmodSync,closeSync,openSync,renameSync,readlinkSync,unlinkSync,copyFileSync,existsSync,lstatSync,mkdirSync,readFileSync,readdirSync,realpathSync,symlinkSync,writeFileSync} from 'node:fs';
@@ -419,6 +420,7 @@ export async function build(platform,work,receipt,base) {
 
 async function buildApplication(platform,work,project,env,shell) {
   await run(shell,['--noprofile','--norc','-e','-o','pipefail','-c',LOCAL_BUILD_SOURCE,'tuyufactory-build',platform,project,work],{...env,PRODUCT_BUILD_ROOT:root},project);
+  await generatedHeaders(project, {app: true});
 }
 
 // 每次调用拥有自己的取消和进程集合，导入API并发也不能共享执行状态。
@@ -3219,4 +3221,33 @@ if(process.env.NODE_TEST_CONTEXT&&process.argv.length===2){
    const zipped=appleSigning(archive,work);assert.equal(zipped.at(-1).path,'.');assert.match(fs.readFileSync(zipped.at(-1).entitlements,'utf8'),/allow-jit/u);
   }finally{fs.rmSync(work,{recursive:true,force:true});}
  });
+}
+
+// 为明确的第一方生成输出写入职责简介；保留工具指令、许可和全部生成代码。
+export async function generatedHeaders(source, {app = false} = {}) {
+ const {readFile,writeFile}=await import('node:fs/promises');
+ const files={
+  "app/lib/shared/l10n/app_localizations.dart": "声明途遇厂家端本地化文案接口及Flutter语言加载。",
+  "app/lib/shared/l10n/app_localizations_en.dart": "提供途遇厂家端界面的英文文案。",
+  "app/lib/shared/l10n/app_localizations_zh.dart": "提供途遇厂家端界面的中文文案。",
+  "app/linux/flutter/generated_plugin_registrant.cc": "在Linux Flutter引擎注册厂家端所需原生插件。",
+  "app/linux/flutter/generated_plugin_registrant.h": "声明Linux Flutter原生插件统一注册入口。",
+  "app/windows/flutter/generated_plugin_registrant.cc": "在Windows Flutter引擎注册厂家端所需原生插件。",
+  "app/windows/flutter/generated_plugin_registrant.h": "声明Windows Flutter原生插件统一注册入口。",
+  "app/linux/flutter/generated_plugins.cmake": "装配Linux端已声明Flutter插件及其原生构建目标。",
+  "app/windows/flutter/generated_plugins.cmake": "装配Windows端已声明Flutter插件及其原生构建目标。",
+  "app/windows/runner/Runner.rc": "声明厂家端Windows图标、产品版本及本地化名称资源。"
+};
+ for(const [name,intro] of Object.entries(files)){
+  const path=join(source,app ? name.replace(/^app\//u,'') : name);let text;
+  try{text=await readFile(path,'utf8');}catch(error){if(error.code==='ENOENT')continue;throw error;}
+  const codePage=name.endsWith('.rc')?(/^#pragma code_page\(65001\)\r?\n/u.exec(text)?.[0]??''):'';
+  if(codePage)text=text.slice(codePage.length);
+  const header=(name.endsWith('.cmake')?'# ':name.endsWith('.rs')?'//! ':'// ')+intro;
+  if(text.startsWith(header+'\n'))continue;
+  const first=text.slice(0,text.indexOf('\n'));
+  if(/^(?:\/\/!?|#) [\u3400-\u9fff]/u.test(first)&&!/(?:版权|版权所有)/u.test(first))text=text.slice(first.length).replace(/^\n+/u,'');
+  text=codePage+header+'\n\n'+text;
+  await writeFile(path,text);
+ }
 }

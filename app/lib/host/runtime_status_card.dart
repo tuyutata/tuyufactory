@@ -1,3 +1,5 @@
+// 展示厂家运行组件的当前状态及错误信息。
+
 import 'package:flutter/material.dart';
 import 'package:tuyufactory/host/runtime_model.dart';
 import 'package:tuyufactory/shared/l10n/app_localizations.dart';

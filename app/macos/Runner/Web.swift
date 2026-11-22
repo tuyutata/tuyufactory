@@ -1,3 +1,5 @@
+// 承载厂家原生网页及下载，以已确认叶证书校验TLS身份。
+
 import Foundation
 import Security
 import CryptoKit

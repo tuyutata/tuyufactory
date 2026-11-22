@@ -1,3 +1,5 @@
+// 将厂家分机iOS场景生命周期交由Flutter处理。
+
 import Flutter
 import UIKit
 

@@ -1,3 +1,5 @@
+-- 定义厂家本地安装实例、系统管理员和管理员审计表。
+
 BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS tuyu_core;

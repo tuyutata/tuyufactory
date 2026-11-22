@@ -1,3 +1,5 @@
+// 验证主机启动、组件失败重试、管理员初始化及摄像头认证交互。
+
 import 'dart:convert';
 
 import 'package:flutter/services.dart';

@@ -1,3 +1,5 @@
+// 声明Windows启动使用的控制台和命令行辅助接口。
+
 #ifndef RUNNER_UTILS_H_
 #define RUNNER_UTILS_H_
 

@@ -1,3 +1,5 @@
+// 管理厂家macOS应用的启动、激活和退出生命周期。
+
 import Cocoa
 import FlutterMacOS
 

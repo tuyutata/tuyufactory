@@ -1,3 +1,5 @@
+// 维护厂家运行时启动、管理员挑战、组件状态和等待完成的停机流程。
+
 import 'dart:async';
 import 'dart:io';
 

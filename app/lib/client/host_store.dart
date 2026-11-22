@@ -1,3 +1,5 @@
+// 保存分机已确认的厂家主机信任资料，拒绝覆盖损坏或冲突记录。
+
 import 'dart:convert';
 import 'dart:io';
 

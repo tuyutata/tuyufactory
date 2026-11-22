@@ -1,3 +1,5 @@
+// 创建厂家Linux窗口，初始化Flutter引擎并注册插件。
+
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>

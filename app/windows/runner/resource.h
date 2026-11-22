@@ -2,6 +2,9 @@
 // Microsoft Visual C++ generated include file.
 // Used by Runner.rc
 //
+
+// 定义厂家Windows图标和本地化安装名称的资源标识。
+
 #define IDI_APP_ICON                    101
 // 安装器通过 Shell 本地化名称机制引用此字符串，不用它作为安装身份。
 #define IDS_TUYU_APPLICATION_NAME       102

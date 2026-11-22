@@ -1,3 +1,5 @@
+// 展示厂家主机发现、指纹确认和连接状态并打开员工业务界面。
+
 import 'dart:async';
 
 import 'package:citizen_sdk/citizen_sdk.dart';

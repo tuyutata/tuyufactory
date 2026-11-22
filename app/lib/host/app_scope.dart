@@ -1,3 +1,5 @@
+// 管理厂家主机SDK实例并向页面提供真实钱包设备状态。
+
 import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;

@@ -1,3 +1,5 @@
+// 展示管理员扫码认证及员工网关启停操作，定期刷新真实进程状态。
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tuyufactory/host/employee_access_controller.dart';

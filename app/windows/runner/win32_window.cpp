@@ -1,3 +1,5 @@
+// 实现Win32窗口注册、消息分派和尺寸生命周期处理。
+
 #include "win32_window.h"
 
 #include <dwmapi.h>

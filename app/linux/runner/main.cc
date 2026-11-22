@@ -1,3 +1,5 @@
+// 启动厂家Linux原生应用入口。
+
 #include "my_application.h"
 
 int main(int argc, char** argv) {

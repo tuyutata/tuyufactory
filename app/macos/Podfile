@@ -1,3 +1,5 @@
+# 为厂家macOS主机或分机接入Flutter及CitizenSDK框架。
+
 module TuyuFactoryMacosProduct
   def self.validate(phase, environment = ENV)
     raise '厂家macOS构建阶段不明确' unless %w[assemble embed].include?(phase)

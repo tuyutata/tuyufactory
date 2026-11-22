@@ -1,3 +1,5 @@
+// 声明Win32窗口抽象及创建、显示和消息处理接口。
+
 #ifndef RUNNER_WIN32_WINDOW_H_
 #define RUNNER_WIN32_WINDOW_H_
 

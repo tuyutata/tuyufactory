@@ -1,3 +1,5 @@
+// 校验厂家固定叶证书、主机名及回环网页来源地址。
+
 package com.tuyufactory.client
 
 import java.net.URI

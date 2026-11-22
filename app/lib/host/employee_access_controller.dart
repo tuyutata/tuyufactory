@@ -1,3 +1,5 @@
+// 通过原生接口管理管理员挑战、认证及员工局域网入口状态。
+
 import 'package:flutter/foundation.dart';
 import 'package:tuyufactory/host/native_runtime.dart';
 

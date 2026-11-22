@@ -1,3 +1,5 @@
+//! 管理厂家站点子进程及其就绪状态探测。
+
 use std::fs::OpenOptions;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;

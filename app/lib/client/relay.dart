@@ -1,3 +1,5 @@
+// 在本地容器与厂家主机间转发TLS密文，管理双向背压和连接回收。
+
 import 'dart:async';
 import 'dart:io';
 

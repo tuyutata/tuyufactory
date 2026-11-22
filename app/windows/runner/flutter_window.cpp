@@ -1,3 +1,5 @@
+// 创建厂家Windows Flutter窗口，接入插件并按生命周期释放原生通道。
+
 #include "flutter_window.h"
 
 #include <optional>

@@ -1,3 +1,5 @@
+//! 装配并启动厂家数据库和ERPNext，管理本地机密、管理员及运行状态。
+
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};

@@ -1,3 +1,5 @@
+// 验证管理员挑战、权限失效和员工网关启停的单次执行。
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

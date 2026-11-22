@@ -1,3 +1,5 @@
+# 装配Windows端已声明Flutter插件及其原生构建目标。
+
 #
 # Generated file, do not edit.
 #

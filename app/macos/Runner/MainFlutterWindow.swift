@@ -1,3 +1,5 @@
+// 创建厂家macOS Flutter窗口并注册插件及原生通道。
+
 import Cocoa
 import FlutterMacOS
 

@@ -1,3 +1,5 @@
+// 验证厂家Apple安装身份及局域网证书和传输配置。
+
 import Cocoa
 import FlutterMacOS
 import XCTest

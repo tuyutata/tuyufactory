@@ -1,3 +1,5 @@
+//! 验证原生FFI失败关闭及物化运行包的初始化和重启。
+
 use std::ffi::{CStr, CString, c_char};
 use std::fs;
 use std::path::Path;

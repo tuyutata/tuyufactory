@@ -1,3 +1,5 @@
+// 声明Linux Flutter原生插件统一注册入口。
+
 //
 //  Generated file. Do not edit.
 //

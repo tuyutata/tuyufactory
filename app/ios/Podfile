@@ -1,3 +1,5 @@
+# 为厂家iOS分机配置最低系统版本和Flutter插件依赖。
+
 platform :ios, '16.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 

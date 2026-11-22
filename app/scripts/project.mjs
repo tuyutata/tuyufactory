@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// tuyufactory：扁平源码是唯一输入，平台工具要求的目录只在本次工作根装配。
-// 每个产品拥有自己的映射；不读取其他产品的构建配置，不复用任务输出。
+// 将厂家扁平源码装配为隔离Flutter平台工程，并解析锁定的第一方依赖。
+
 import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync,
   readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

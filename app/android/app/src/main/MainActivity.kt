@@ -1,3 +1,5 @@
+// 承载厂家分机Flutter界面，注册SDK及局域网发现和网页容器通道。
+
 package com.tuyufactory.client
 
 import android.content.Context

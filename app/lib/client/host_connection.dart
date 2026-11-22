@@ -1,3 +1,5 @@
+// 协调主机发现、用户确认、信任保存和固定身份的连接恢复。
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

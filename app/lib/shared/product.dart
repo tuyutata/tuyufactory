@@ -1,3 +1,5 @@
+// 声明厂家主机与分机的产品和安装身份，提供共用钱包交互。
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';

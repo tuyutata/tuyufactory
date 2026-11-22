@@ -1,3 +1,5 @@
+// 呈现厂家主机状态、管理员初始化和摄像头扫码认证界面。
+
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';

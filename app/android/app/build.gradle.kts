@@ -1,3 +1,5 @@
+// 配置厂家分机Android身份、Flutter构建及按语言生成的安装名称和图标资源。
+
 import groovy.json.JsonSlurper
 import java.io.File
 import java.util.Properties

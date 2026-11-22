@@ -1,3 +1,5 @@
+// 验证主机与分机的SDK依赖、钱包交互和安装身份隔离。
+
 import 'dart:convert';
 import 'dart:typed_data';
 

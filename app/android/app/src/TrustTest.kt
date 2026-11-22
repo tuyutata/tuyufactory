@@ -1,3 +1,5 @@
+// 验证厂家固定证书、主机身份和原生网页地址的信任边界。
+
 package com.tuyufactory.client
 
 import java.nio.file.Files

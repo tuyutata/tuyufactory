@@ -1,3 +1,5 @@
+# 从生产源码验证Apple网页容器的证书信任策略。
+
 require 'json'
 require 'minitest/autorun'
 require 'open3'

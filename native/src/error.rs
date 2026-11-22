@@ -1,3 +1,5 @@
+//! 定义厂家原生运行时的文件、进程、数据目录及启动错误。
+
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]

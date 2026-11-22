@@ -1,3 +1,5 @@
+// 声明厂家Linux原生应用类型和创建接口。
+
 #ifndef FLUTTER_MY_APPLICATION_H_
 #define FLUTTER_MY_APPLICATION_H_
 

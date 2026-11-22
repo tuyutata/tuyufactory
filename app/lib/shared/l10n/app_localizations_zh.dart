@@ -1,3 +1,5 @@
+// 提供途遇厂家端界面的中文文案。
+
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 

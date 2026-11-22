@@ -1,3 +1,5 @@
+// 验证厂家产品身份、平台安装名称及HTTPS地址解析合同。
+
 import 'dart:convert';
 import 'dart:io';
 

@@ -1,3 +1,5 @@
+// 从当前Flutter工程加载插件元数据并配置Android构建模块。
+
 import groovy.json.JsonSlurper
 
 pluginManagement {

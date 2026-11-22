@@ -1,3 +1,5 @@
+// 声明厂家分机原生网页窗口及其生命周期接口。
+
 #ifndef RUNNER_WEB_H_
 #define RUNNER_WEB_H_
 

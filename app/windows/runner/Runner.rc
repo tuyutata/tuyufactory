@@ -1,4 +1,6 @@
 #pragma code_page(65001)
+// 声明厂家端Windows图标、产品版本及本地化名称资源。
+
 // Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)

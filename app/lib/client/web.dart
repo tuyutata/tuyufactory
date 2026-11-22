@@ -1,3 +1,5 @@
+// 管理厂家原生网页窗口及传输生命周期，限制通道为公开主机资料。
+
 import 'dart:async';
 import 'dart:io';
 

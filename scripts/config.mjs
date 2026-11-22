@@ -1,4 +1,5 @@
-// 本产品配置需求的公开入口；只登记名称、类型和规则，不保存配置值。
+// 声明厂家各角色的平台、配置需求和控制台构建动作。
+
 export const manifest=Object.freeze({
   "schema": 1,
   "product_id": "tuyufactory",

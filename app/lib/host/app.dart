@@ -1,3 +1,5 @@
+// 装配厂家主机应用的主题、本地化和主机运行页面。
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tuyufactory/host/app_scope.dart';

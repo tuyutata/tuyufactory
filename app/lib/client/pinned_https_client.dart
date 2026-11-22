@@ -1,3 +1,5 @@
+// 以固定证书和主机身份探测厂家公开HTTPS状态。
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

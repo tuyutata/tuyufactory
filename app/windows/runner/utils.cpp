@@ -1,3 +1,5 @@
+// 提供Windows控制台附着和命令行参数转换工具。
+
 #include "utils.h"
 
 #include <flutter_windows.h>

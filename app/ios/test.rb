@@ -1,3 +1,5 @@
+# 核对Apple平台工程身份、安装边界和构建入口拒绝条件。
+
 require 'json'
 require 'minitest/autorun'
 require 'open3'

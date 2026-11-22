@@ -1,4 +1,5 @@
-# This file controls Flutter-level build steps. It should not be edited.
+# 编译厂家Windows Flutter应用及插件包装库。
+
 cmake_minimum_required(VERSION 3.14)
 
 set(EPHEMERAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ephemeral")

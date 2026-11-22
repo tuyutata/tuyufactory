@@ -1,3 +1,5 @@
+// 在Windows Flutter引擎注册厂家端所需原生插件。
+
 //
 //  Generated file. Do not edit.
 //

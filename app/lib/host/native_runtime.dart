@@ -1,3 +1,5 @@
+// 通过FFI调用厂家原生运行时，解析组件、管理员及网关状态。
+
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';

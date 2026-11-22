@@ -1,3 +1,5 @@
+// 实现厂家分机WebView2窗口、固定运行时及受限请求和下载接线。
+
 #include "web.h"
 
 #include <WebView2.h>

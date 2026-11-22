@@ -1,4 +1,5 @@
-# Project-level configuration.
+# 装配厂家Linux应用、Flutter插件及打包资源。
+
 cmake_minimum_required(VERSION 3.13)
 project(runner LANGUAGES CXX)
 

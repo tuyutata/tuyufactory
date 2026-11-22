@@ -1,3 +1,5 @@
+// 启动独立的厂家分机应用并装配分机依赖。
+
 import 'package:flutter/widgets.dart';
 import 'package:tuyufactory/client/app.dart';
 

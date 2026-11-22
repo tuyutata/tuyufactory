@@ -1,3 +1,5 @@
+// 验证Android分机身份、插件注册、权限及发现通道的源码合同。
+
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

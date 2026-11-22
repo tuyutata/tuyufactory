@@ -1,3 +1,5 @@
+// 验证Windows网页容器接线、固定运行时、权限和请求代次边界。
+
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

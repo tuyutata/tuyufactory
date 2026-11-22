@@ -1,3 +1,5 @@
+// 验证Android发现锁的前台持有、幂等释放和关闭状态。
+
 package com.tuyufactory.client
 
 /** 独立 JVM 组件测试：不加载 Flutter、SDK、厂家业务进程或真实无线权限。 */

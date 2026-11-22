@@ -1,3 +1,5 @@
+# 构建厂家Windows窗口，并为分机接入固定WebView2。
+
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 

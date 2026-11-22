@@ -1,3 +1,5 @@
+// 声明途遇厂家端本地化文案接口及Flutter语言加载。
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

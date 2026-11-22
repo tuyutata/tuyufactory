@@ -1,3 +1,5 @@
+// 启动厂家iOS分机，按公开插件清单注册Flutter和CitizenSDK。
+
 import Flutter
 import UIKit
 

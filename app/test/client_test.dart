@@ -1,3 +1,5 @@
+// 验证分机独立装配及不同语言和尺寸下的未接入界面。
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tuyufactory/client/app.dart';

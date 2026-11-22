@@ -1,3 +1,5 @@
+// 提供厂家分机原生网页容器，校验TLS握手并处理受限下载。
+
 package com.tuyufactory.client
 
 import android.Manifest
